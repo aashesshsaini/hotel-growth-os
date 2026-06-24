@@ -1,0 +1,42 @@
+import { Router } from 'express';
+import authRoutes from '../modules/auth/auth.routes';
+import hotelRoutes from '../modules/hotels/routes';
+import staffRoutes from '../modules/staff/routes';
+import roomTypeRoutes from '../modules/roomTypes/routes';
+import roomRoutes from '../modules/rooms/routes';
+import guestRoutes from '../modules/guests/routes';
+import enquiryRoutes from '../modules/enquiries/enquiries.routes';
+import bookingRoutes from '../modules/bookings/bookings.routes';
+import paymentRoutes from '../modules/payments/payments.routes';
+import reviewRoutes from '../modules/reviews/reviews.routes';
+import campaignRoutes from '../modules/campaigns/campaigns.routes';
+import corporateLeadRoutes from '../modules/corporateLeads/corporateLeads.routes';
+import eventLeadRoutes from '../modules/eventLeads/eventLeads.routes';
+import whatsappRoutes from '../modules/whatsapp/whatsapp.routes';
+import dashboardRoutes from '../modules/dashboard/dashboard.routes';
+import reportRoutes from '../modules/reports/reports.routes';
+import taskRoutes from '../modules/tasks/tasks.routes';
+import notificationRoutes from '../modules/notifications/notifications.routes';
+
+const router = Router();
+
+router.use('/auth', authRoutes);
+router.use('/hotels', hotelRoutes);
+router.use('/staff', staffRoutes);
+router.use('/room-types', roomTypeRoutes);
+router.use('/rooms', roomRoutes);
+router.use('/guests', guestRoutes);
+router.use('/enquiries', enquiryRoutes);
+router.use('/bookings', bookingRoutes);
+router.use('/payments', paymentRoutes);
+router.use('/reviews', reviewRoutes);
+router.use('/campaigns', campaignRoutes);
+router.use('/corporate-leads', corporateLeadRoutes);
+router.use('/event-leads', eventLeadRoutes);
+router.use('/whatsapp', whatsappRoutes);
+router.use('/dashboard', dashboardRoutes);
+router.use('/reports', reportRoutes);
+router.use('/tasks', taskRoutes);
+router.use('/notifications', notificationRoutes);
+
+export default router;

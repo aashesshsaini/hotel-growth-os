@@ -1,0 +1,7 @@
+export function formatCurrency(amount: number, currency = 'INR'): string { return new Intl.NumberFormat('en-IN', { style: 'currency', currency, maximumFractionDigits: 0 }).format(amount || 0); }
+export function formatDate(date: string | Date | undefined, options?: Intl.DateTimeFormatOptions): string { if (!date) return '—'; const d = typeof date === 'string' ? new Date(date) : date; if (Number.isNaN(d.getTime())) return '—'; return d.toLocaleDateString('en-IN', options ?? { day: '2-digit', month: 'short', year: 'numeric' }); }
+export function formatDateTime(date: string | Date | undefined): string { if (!date) return '—'; const d = typeof date === 'string' ? new Date(date) : date; if (Number.isNaN(d.getTime())) return '—'; return d.toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }); }
+export function formatPercent(value: number): string { return `${value.toFixed(1)}%`; }
+export function capitalize(str: string): string { return str.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()); }
+export function debounce<T extends (...args: never[]) => void>(fn: T, delay = 300): (...args: Parameters<T>) => void { let timer: ReturnType<typeof setTimeout>; return (...args: Parameters<T>) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), delay); }; }
+export function toInputDate(date?: string | Date): string { if (!date) return ''; const d = typeof date === 'string' ? new Date(date) : date; return Number.isNaN(d.getTime()) ? '' : d.toISOString().split('T')[0]; }

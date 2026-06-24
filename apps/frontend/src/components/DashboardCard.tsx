@@ -1,0 +1,2 @@
+'use client';
+export function DashboardCard({ title, value, icon }: { title: string; value: React.ReactNode; icon?: React.ReactNode }) { return <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><div className="flex items-center justify-between"><p className="text-sm font-medium text-slate-500">{title}</p><div className="text-indigo-600">{icon}</div></div><div className="mt-2 text-2xl font-bold text-slate-950">{value}</div></div>; }

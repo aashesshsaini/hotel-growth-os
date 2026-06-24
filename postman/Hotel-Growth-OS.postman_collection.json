@@ -1,0 +1,194 @@
+{
+  "info": {
+    "name": "Hotel Growth OS API",
+    "description": "REST API collection for Hotel Growth OS",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000/api/v1" },
+    { "key": "token", "value": "" },
+    { "key": "hotelId", "value": "" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.data && res.data.token) {",
+                  "  pm.collectionVariables.set('token', res.data.token);",
+                  "  if (res.data.user && res.data.user.hotelId) {",
+                  "    pm.collectionVariables.set('hotelId', res.data.user.hotelId);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@hotelgrowthos.com\",\n  \"password\": \"Admin@123456\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/login"
+          }
+        },
+        {
+          "name": "Get Profile",
+          "request": { "method": "GET", "url": "{{baseUrl}}/auth/profile" }
+        }
+      ]
+    },
+    {
+      "name": "Hotels",
+      "item": [
+        {
+          "name": "List Hotels",
+          "request": { "method": "GET", "url": "{{baseUrl}}/hotels?page=1&limit=10" }
+        },
+        {
+          "name": "Get Hotel",
+          "request": { "method": "GET", "url": "{{baseUrl}}/hotels/{{hotelId}}" }
+        },
+        {
+          "name": "Create Hotel",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"New Hotel\",\n  \"email\": \"info@newhotel.com\",\n  \"phone\": \"9876543210\",\n  \"ownerEmail\": \"owner@newhotel.com\",\n  \"ownerName\": \"Owner Name\",\n  \"ownerPassword\": \"Owner@123456\",\n  \"address\": {\n    \"city\": \"Mumbai\",\n    \"state\": \"Maharashtra\",\n    \"country\": \"India\"\n  }\n}"
+            },
+            "url": "{{baseUrl}}/hotels"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Enquiries",
+      "item": [
+        {
+          "name": "List Enquiries",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "x-hotel-id", "value": "{{hotelId}}" }],
+            "url": "{{baseUrl}}/enquiries?page=1&limit=10"
+          }
+        },
+        {
+          "name": "Create Enquiry",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-hotel-id", "value": "{{hotelId}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"guestName\": \"John Doe\",\n  \"phone\": \"9876543210\",\n  \"source\": \"whatsapp\",\n  \"guestsCount\": 2\n}"
+            },
+            "url": "{{baseUrl}}/enquiries"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Bookings",
+      "item": [
+        {
+          "name": "List Bookings",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "x-hotel-id", "value": "{{hotelId}}" }],
+            "url": "{{baseUrl}}/bookings"
+          }
+        },
+        {
+          "name": "Booking Calendar",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "x-hotel-id", "value": "{{hotelId}}" }],
+            "url": "{{baseUrl}}/bookings/calendar?startDate=2026-06-01&endDate=2026-06-30"
+          }
+        },
+        {
+          "name": "Available Rooms",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "x-hotel-id", "value": "{{hotelId}}" }],
+            "url": "{{baseUrl}}/bookings/available-rooms?checkInDate=2026-07-01&checkOutDate=2026-07-03"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dashboard",
+      "item": [
+        {
+          "name": "Dashboard Summary",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "x-hotel-id", "value": "{{hotelId}}" }],
+            "url": "{{baseUrl}}/dashboard"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reports",
+      "item": [
+        {
+          "name": "Revenue Report",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "x-hotel-id", "value": "{{hotelId}}" }],
+            "url": "{{baseUrl}}/reports/revenue?from=2026-01-01&to=2026-12-31"
+          }
+        }
+      ]
+    },
+    {
+      "name": "WhatsApp",
+      "item": [
+        {
+          "name": "Webhook Verify",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/whatsapp/webhook?hub.mode=subscribe&hub.verify_token=hotel-growth-os-verify-token&hub.challenge=test123",
+              "host": ["{{baseUrl}}"],
+              "path": ["whatsapp", "webhook"],
+              "query": [
+                { "key": "hub.mode", "value": "subscribe" },
+                { "key": "hub.verify_token", "value": "hotel-growth-os-verify-token" },
+                { "key": "hub.challenge", "value": "test123" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "List Messages",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "x-hotel-id", "value": "{{hotelId}}" }],
+            "url": "{{baseUrl}}/whatsapp/messages"
+          }
+        }
+      ]
+    }
+  ]
+}

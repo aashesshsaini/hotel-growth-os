@@ -1,0 +1,24 @@
+{
+  "name": "hotel-growth-os",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Hotel Growth OS - SaaS platform for Indian hotels",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev -w @hotel-growth-os/backend\" \"npm run dev -w @hotel-growth-os/frontend\"",
+    "dev:backend": "npm run dev -w @hotel-growth-os/backend",
+    "dev:frontend": "npm run dev -w @hotel-growth-os/frontend",
+    "build": "npm run build -w @hotel-growth-os/shared && npm run build -w @hotel-growth-os/backend && npm run build -w @hotel-growth-os/frontend",
+    "seed": "npm run seed -w @hotel-growth-os/backend",
+    "lint": "npm run lint -w @hotel-growth-os/backend && npm run lint -w @hotel-growth-os/frontend"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
