@@ -17,7 +17,6 @@ import { ConfirmDialog } from '@/components/Modal';
 import { DataTable } from '@/components/DataTable';
 import { FormInput, SelectInput } from '@/components/FormInput';
 import { Modal } from '@/components/Modal';
-import { PageHeader } from '@/components/PageHeader';
 import { useToast } from '@/components/Toast';
 import { AvailableRoomsChecker } from '@/features/rooms/AvailableRoomsChecker';
 import { BulkRoomCreateForm } from '@/features/rooms/BulkRoomCreateForm';
@@ -42,6 +41,7 @@ import { getBookingLabel, getGuestName, getRoomTypeName } from '@/features/rooms
 import { useAuth } from '@/hooks/useAuth';
 import { usePaginatedQuery } from '@/hooks/usePaginatedQuery';
 import { getRoomTypes } from '@/services/roomTypes.service';
+import { staffService } from '@/services/staff.service';
 import {
   blockRoom,
   bulkCreateRooms,
@@ -56,7 +56,7 @@ import {
   updateRoom,
   updateRoomStatus,
 } from '@/services/rooms.service';
-import type { BulkRoomFormData, Room, RoomFormData, RoomStats, RoomType } from '@/types';
+import type { BulkRoomFormData, Room, RoomFormData, RoomStats, RoomType, Staff } from '@/types';
 import { getEntityId } from '@/types';
 
 type ViewMode = 'table' | 'grid' | 'floor';
@@ -69,6 +69,7 @@ const RoomsPage = () => {
 
   const [viewMode, setViewMode] = useState<ViewMode>('table');
   const [roomTypes, setRoomTypes] = useState<RoomType[]>([]);
+  const [staff, setStaff] = useState<Staff[]>([]);
   const [stats, setStats] = useState<RoomStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
 
@@ -77,6 +78,7 @@ const RoomsPage = () => {
   const [maintFilter, setMaintFilter] = useState('');
   const [roomTypeFilter, setRoomTypeFilter] = useState('');
   const [floorFilter, setFloorFilter] = useState('');
+  const [capacityFilter, setCapacityFilter] = useState('');
   const [bookableFilter, setBookableFilter] = useState('');
   const [blockedFilter, setBlockedFilter] = useState('');
 
@@ -87,10 +89,11 @@ const RoomsPage = () => {
       maintenanceStatus: maintFilter || undefined,
       roomTypeId: roomTypeFilter || undefined,
       floorNumber: floorFilter ? Number(floorFilter) : undefined,
+      minCapacity: capacityFilter ? Number(capacityFilter) : undefined,
       isBookable: bookableFilter ? bookableFilter === 'true' : undefined,
       isBlocked: blockedFilter ? blockedFilter === 'true' : undefined,
     }),
-    [statusFilter, hkFilter, maintFilter, roomTypeFilter, floorFilter, bookableFilter, blockedFilter]
+    [statusFilter, hkFilter, maintFilter, roomTypeFilter, floorFilter, capacityFilter, bookableFilter, blockedFilter]
   );
 
   const listParamsRef = useRef(listParams);
@@ -127,6 +130,7 @@ const RoomsPage = () => {
 
   useEffect(() => {
     getRoomTypes({ limit: 100 }).then((r) => setRoomTypes(r.data)).catch(() => {});
+    staffService.list({ limit: 100 }).then((r) => setStaff(r.data)).catch(() => setStaff([]));
     void loadStats();
   }, [loadStats]);
 
@@ -140,6 +144,7 @@ const RoomsPage = () => {
     setMaintFilter('');
     setRoomTypeFilter('');
     setFloorFilter('');
+    setCapacityFilter('');
     setBookableFilter('');
     setBlockedFilter('');
   };
@@ -198,11 +203,27 @@ const RoomsPage = () => {
       status: room.status,
       housekeepingStatus: room.housekeepingStatus,
       maintenanceStatus: room.maintenanceStatus,
+      assignedHousekeeperId: typeof room.assignedHousekeeperId === 'object' ? room.assignedHousekeeperId._id : room.assignedHousekeeperId,
+      assignedMaintenanceStaffId: typeof room.assignedMaintenanceStaffId === 'object' ? room.assignedMaintenanceStaffId._id : room.assignedMaintenanceStaffId,
       maxGuestsOverride: room.maxGuestsOverride,
+      capacity: room.capacity,
+      maxAdults: room.maxAdults,
+      maxChildren: room.maxChildren,
+      bedType: room.bedType,
+      viewType: room.viewType,
+      smokingPolicy: room.smokingPolicy,
       priceOverride: room.priceOverride,
       isPriceOverridden: room.isPriceOverridden,
       isBookable: room.isBookable,
       isVisibleToStaff: room.isVisibleToStaff,
+      cleaningNotes: room.cleaningNotes,
+      maintenanceNotes: room.maintenanceNotes,
+      housekeepingSchedule: room.housekeepingSchedule,
+      maintenanceSchedule: room.maintenanceSchedule,
+      internalNotes: room.internalNotes,
+      amenitiesOverride: room.amenitiesOverride,
+      images: room.images,
+      inspectionChecklist: room.inspectionChecklist,
       notes: room.notes,
       tags: room.tags,
     });
@@ -303,6 +324,7 @@ const RoomsPage = () => {
     { key: 'roomNumber', header: 'Room #', render: (row: Room) => <span className="font-medium">{row.roomNumber}</span> },
     { key: 'roomTypeId', header: 'Type', render: (row: Room) => getRoomTypeName(row) },
     { key: 'floor', header: 'Floor', render: (row: Room) => row.floorNumber ?? row.floor ?? '—' },
+    { key: 'capacity', header: 'Capacity', render: (row: Room) => row.capacity ?? row.maxGuestsOverride ?? '—' },
     { key: 'buildingName', header: 'Building', render: (row: Room) => row.buildingName || '—' },
     { key: 'status', header: 'Status', render: (row: Room) => <RoomStatusBadge status={row.status} /> },
     { key: 'housekeepingStatus', header: 'HK', render: (row: Room) => <HousekeepingStatusBadge status={row.housekeepingStatus} /> },
@@ -414,26 +436,34 @@ const RoomsPage = () => {
   };
 
   return (
-    <div>
-      <PageHeader
-        title="Rooms"
-        subtitle="Manage physical room inventory and availability"
-        actions={
+    <div className="space-y-6">
+      <section className="overflow-hidden rounded-3xl border border-indigo-100 bg-white shadow-sm">
+        <div className="relative bg-gradient-to-br from-slate-950 via-indigo-700 to-purple-700 px-5 py-6 text-white sm:px-6 lg:px-8">
+          <div className="absolute right-0 top-0 h-44 w-44 rounded-full bg-white/10 blur-3xl" />
+          <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.25em] text-indigo-100">Property Management</p>
+              <h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">Rooms Management</h1>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-indigo-100">
+                Manage room inventory, occupancy, housekeeping, maintenance, blocking, availability, and operational readiness.
+              </p>
+            </div>
           <div className="flex items-center gap-2">
             <div className="flex rounded-lg border border-slate-200 p-0.5">
-              <button type="button" className={`rounded-md p-2 ${viewMode === 'table' ? 'bg-slate-100' : ''}`} onClick={() => setViewMode('table')} aria-label="Table view"><Grid3X3 className="h-4 w-4 rotate-90" /></button>
-              <button type="button" className={`rounded-md p-2 ${viewMode === 'grid' ? 'bg-slate-100' : ''}`} onClick={() => setViewMode('grid')} aria-label="Grid view"><Grid3X3 className="h-4 w-4" /></button>
-              <button type="button" className={`rounded-md p-2 ${viewMode === 'floor' ? 'bg-slate-100' : ''}`} onClick={() => setViewMode('floor')} aria-label="Floor view"><Layers className="h-4 w-4" /></button>
+              <button type="button" className={`rounded-md p-2 text-white ${viewMode === 'table' ? 'bg-white/20' : ''}`} onClick={() => setViewMode('table')} aria-label="Table view"><Grid3X3 className="h-4 w-4 rotate-90" /></button>
+              <button type="button" className={`rounded-md p-2 text-white ${viewMode === 'grid' ? 'bg-white/20' : ''}`} onClick={() => setViewMode('grid')} aria-label="Grid view"><Grid3X3 className="h-4 w-4" /></button>
+              <button type="button" className={`rounded-md p-2 text-white ${viewMode === 'floor' ? 'bg-white/20' : ''}`} onClick={() => setViewMode('floor')} aria-label="Floor view"><Layers className="h-4 w-4" /></button>
             </div>
             {canManage && (
               <>
-                <button type="button" className="btn-secondary" onClick={() => setBulkMode(true)}>Bulk Create</button>
-                <button type="button" className="btn-primary" onClick={openCreate}><Plus className="mr-2 h-4 w-4" /> Add Room</button>
+                <button type="button" className="rounded-xl bg-white/15 px-4 py-2 text-sm font-semibold text-white ring-1 ring-white/25 hover:bg-white/20" onClick={() => setBulkMode(true)}>Bulk Create</button>
+                <button type="button" className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-50" onClick={openCreate}><Plus className="mr-2 inline h-4 w-4" /> Add Room</button>
               </>
             )}
           </div>
-        }
-      />
+          </div>
+        </div>
+      </section>
 
       <RoomStatsCards stats={stats} isLoading={statsLoading} />
       <AvailableRoomsChecker roomTypes={roomTypes} />
@@ -444,6 +474,7 @@ const RoomsPage = () => {
         maintFilter={maintFilter}
         roomTypeFilter={roomTypeFilter}
         floorFilter={floorFilter}
+        capacityFilter={capacityFilter}
         bookableFilter={bookableFilter}
         blockedFilter={blockedFilter}
         onStatusChange={setStatusFilter}
@@ -451,6 +482,7 @@ const RoomsPage = () => {
         onMaintChange={setMaintFilter}
         onRoomTypeChange={setRoomTypeFilter}
         onFloorChange={setFloorFilter}
+        onCapacityChange={setCapacityFilter}
         onBookableChange={setBookableFilter}
         onBlockedChange={setBlockedFilter}
         onReset={resetFilters}
@@ -504,7 +536,7 @@ const RoomsPage = () => {
           <button type="button" className="btn-primary" onClick={() => void handleSave()} disabled={isSaving}>{isSaving ? 'Saving...' : formMode === 'create' ? 'Create' : 'Save'}</button>
         </div>
       }>
-        <RoomForm form={form} roomTypes={roomTypes} errors={formErrors} onChange={handleFormChange} />
+        <RoomForm form={form} roomTypes={roomTypes} staff={staff} errors={formErrors} onChange={handleFormChange} />
       </Modal>
 
       <Modal isOpen={bulkMode} onClose={() => setBulkMode(false)} title="Bulk Create Rooms" size="lg" footer={

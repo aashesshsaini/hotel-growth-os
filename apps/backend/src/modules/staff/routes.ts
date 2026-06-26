@@ -3,9 +3,11 @@ import {
   assignStaffToHotel,
   createStaff,
   deleteStaff,
+  addStaffNote,
   getStaffById,
   getStaffStats,
   listStaff,
+  recordStaffAttendance,
   updateStaff,
   updateStaffPermissions,
   updateStaffStatus,
@@ -13,8 +15,10 @@ import {
 import { validate } from '../../validations/validate';
 import {
   assignStaffSchema,
+  addStaffNoteSchema,
   createStaffSchema,
   listStaffQuerySchema,
+  recordAttendanceSchema,
   staffIdParamSchema,
   updateStaffPermissionsSchema,
   updateStaffSchema,
@@ -81,6 +85,22 @@ router.put(
   roleMiddleware(...staffManageRoles),
   validate(updateStaffSchema),
   updateStaff
+);
+
+router.patch(
+  '/:id/attendance',
+  validate(staffIdParamSchema, 'params'),
+  roleMiddleware(...staffManageRoles),
+  validate(recordAttendanceSchema),
+  recordStaffAttendance
+);
+
+router.patch(
+  '/:id/notes',
+  validate(staffIdParamSchema, 'params'),
+  roleMiddleware(...staffManageRoles),
+  validate(addStaffNoteSchema),
+  addStaffNote
 );
 
 router.patch(

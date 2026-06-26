@@ -36,12 +36,23 @@ export const updateStaffPermissions = async (
   return apiPatch<Staff>(`/staff/${id}/permissions`, { permissions });
 };
 
+export const recordStaffAttendance = async (
+  id: string,
+  payload: { date?: string; status: string; checkInAt?: string; checkOutAt?: string; notes?: string }
+): Promise<Staff> => {
+  return apiPatch<Staff>(`/staff/${id}/attendance`, payload);
+};
+
+export const addStaffNote = async (id: string, note: string): Promise<Staff> => {
+  return apiPatch<Staff>(`/staff/${id}/notes`, { note });
+};
+
 export const deleteStaff = async (id: string): Promise<void> => {
   return apiDelete<void>(`/staff/${id}`);
 };
 
 export const reassignStaff = async (id: string, payload: Record<string, unknown>): Promise<Staff> => {
-  return apiPatch<Staff>(`/staff/${id}/reassign`, payload);
+  return apiPatch<Staff>(`/staff/${id}/assign`, payload);
 };
 
 export const staffService = {
@@ -53,5 +64,7 @@ export const staffService = {
   getStats: getStaffStats,
   updateStatus: updateStaffStatus,
   updatePermissions: updateStaffPermissions,
+  recordAttendance: recordStaffAttendance,
+  addNote: addStaffNote,
   reassign: reassignStaff,
 };

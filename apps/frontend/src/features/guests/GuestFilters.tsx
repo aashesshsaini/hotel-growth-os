@@ -76,10 +76,13 @@ export const GuestFilters = ({
   onCampaignEligibleChange,
   onReset,
 }: GuestFiltersProps) => (
-  <div className="card mb-6 space-y-4">
-    <div className="flex items-center justify-between">
-      <h3 className="text-sm font-semibold text-slate-900">Filters</h3>
-      <button type="button" className="text-sm text-primary-600 hover:text-primary-700" onClick={onReset}>
+  <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <h3 className="text-base font-semibold text-slate-950">Guest Filters</h3>
+        <p className="text-sm text-slate-500">Segment the CRM by profile, activity, source, spend, dates, and consent.</p>
+      </div>
+      <button type="button" className="text-sm font-semibold text-indigo-600 hover:text-indigo-700" onClick={onReset}>
         Reset filters
       </button>
     </div>

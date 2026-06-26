@@ -74,11 +74,13 @@ export interface IRoomType extends Document {
   coverImage?: string;
   cancellationPolicy?: string;
   checkInInstructions?: string;
+  internalNotes?: string;
   mealPlan?: MealPlan;
   inventoryType?: InventoryType;
   status: RoomTypeStatus;
   isAvailableForBooking: boolean;
   isVisibleOnWebsite: boolean;
+  isPopular: boolean;
   sortOrder: number;
   tags: string[];
   metadata?: Record<string, unknown>;
@@ -130,11 +132,13 @@ const roomTypeSchema = new Schema<IRoomType>(
     coverImage: { type: String },
     cancellationPolicy: { type: String, maxlength: 2000 },
     checkInInstructions: { type: String, maxlength: 1000 },
+    internalNotes: { type: String, maxlength: 2000 },
     mealPlan: { type: String, enum: MEAL_PLANS, default: 'room_only' },
     inventoryType: { type: String, enum: INVENTORY_TYPES, default: 'standard' },
     status: { type: String, enum: ROOM_TYPE_STATUSES, default: 'active', index: true },
     isAvailableForBooking: { type: Boolean, default: true, index: true },
     isVisibleOnWebsite: { type: Boolean, default: true, index: true },
+    isPopular: { type: Boolean, default: false, index: true },
     sortOrder: { type: Number, default: 0 },
     tags: [{ type: String }],
     metadata: { type: Schema.Types.Mixed },

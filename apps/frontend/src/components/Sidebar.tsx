@@ -9,6 +9,7 @@ import {
   Building2,
   CalendarDays,
   ClipboardList,
+  ClipboardCheck,
   CreditCard,
   DollarSign,
   Home,
@@ -22,6 +23,7 @@ import {
   UserCheck,
   Users,
   WalletCards,
+  Wrench,
 } from 'lucide-react';
 
 const sections = [
@@ -32,6 +34,8 @@ const sections = [
       ['/bookings', 'Bookings', CalendarDays],
       ['/booking-calendar', 'Booking Calendar', CalendarDays],
       ['/rooms', 'Rooms', BedDouble],
+      ['/housekeeping', 'Housekeeping', ClipboardCheck],
+      ['/maintenance', 'Maintenance', Wrench],
       ['/room-types', 'Room Types', Hotel],
       ['/guests', 'Guest CRM', Users],
       ['/payments', 'Payments', WalletCards],

@@ -8,6 +8,8 @@ export const ROOM_VIEW_ROLES = [
   'reception_staff',
   'sales_staff',
   'accountant',
+  'housekeeping',
+  'maintenance',
 ] as const;
 
 export const ROOM_STATUS_UPDATE_ROLES = [

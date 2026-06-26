@@ -73,6 +73,11 @@ export const RoomTypeDetailDrawer = ({
             <div>
               <h3 className="text-xl font-semibold text-slate-900">{roomType.name}</h3>
               <p className="text-sm text-slate-500">{roomType.code} · {roomType.slug}</p>
+              {roomType.isPopular ? (
+                <p className="mt-2 inline-flex rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">
+                  Popular room type
+                </p>
+              ) : null}
             </div>
             <RoomTypeStatusBadge status={roomType.status || (roomType.isActive ? 'active' : 'inactive')} />
           </div>
@@ -88,6 +93,8 @@ export const RoomTypeDetailDrawer = ({
                 <DetailRow label="Meal Plan" value={roomType.mealPlan ? capitalize(roomType.mealPlan) : undefined} />
                 <DetailRow label="Inventory Type" value={roomType.inventoryType ? capitalize(roomType.inventoryType) : undefined} />
                 <DetailRow label="Linked Rooms" value={roomType.linkedRoomsCount} />
+                <DetailRow label="Available Rooms" value={roomType.availableRoomsCount} />
+                <DetailRow label="Occupied Rooms" value={roomType.occupiedRoomsCount} />
               </dl>
             </section>
 
@@ -103,6 +110,8 @@ export const RoomTypeDetailDrawer = ({
                 <DetailRow label="Max Adults" value={roomType.maxAdults} />
                 <DetailRow label="Max Children" value={roomType.maxChildren} />
                 <DetailRow label="Total Rooms" value={roomType.totalRooms} />
+                <DetailRow label="Booking Count" value={roomType.bookingCount} />
+                <DetailRow label="Revenue" value={roomType.revenue !== undefined ? formatCurrency(roomType.revenue) : undefined} />
               </dl>
             </section>
           </div>
@@ -118,6 +127,17 @@ export const RoomTypeDetailDrawer = ({
               </span>
             </div>
           </section>
+
+          {(roomType.cancellationPolicy || roomType.checkInInstructions || roomType.internalNotes) ? (
+            <section>
+              <h4 className="mb-3 text-sm font-semibold text-slate-900">Policies & Notes</h4>
+              <dl className="grid gap-3 sm:grid-cols-2">
+                <DetailRow label="Cancellation Policy" value={roomType.cancellationPolicy} />
+                <DetailRow label="Check-in Instructions" value={roomType.checkInInstructions} />
+                <DetailRow label="Internal Notes" value={roomType.internalNotes} />
+              </dl>
+            </section>
+          ) : null}
 
           {(roomType.amenities?.length || roomType.facilities?.length) ? (
             <section>

@@ -1,6 +1,6 @@
 'use client';
 
-import { Globe, Users } from 'lucide-react';
+import { CalendarCheck, Crown, Globe, IndianRupee, Users } from 'lucide-react';
 import type { RoomType } from '@/types';
 import { formatCurrency, capitalize } from '@/utils/format';
 import { RoomTypeStatusBadge } from './RoomTypeStatusBadge';
@@ -13,8 +13,8 @@ interface RoomTypeCardProps {
 
 export const RoomTypeCard = ({ roomType, onView, onEdit }: RoomTypeCardProps) => {
   return (
-    <div className="card overflow-hidden transition hover:shadow-md">
-      <div className="relative h-40 bg-slate-100">
+    <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-xl">
+      <div className="relative h-44 bg-gradient-to-br from-slate-200 to-slate-100">
         {roomType.coverImage ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={roomType.coverImage} alt={roomType.name} className="h-full w-full object-cover" />
@@ -24,21 +24,43 @@ export const RoomTypeCard = ({ roomType, onView, onEdit }: RoomTypeCardProps) =>
         <div className="absolute left-3 top-3">
           <RoomTypeStatusBadge status={roomType.status || (roomType.isActive ? 'active' : 'inactive')} />
         </div>
+        {roomType.isPopular ? (
+          <div className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800 shadow-sm">
+            <Crown className="h-3.5 w-3.5" /> Popular
+          </div>
+        ) : null}
       </div>
-      <div className="space-y-3 p-4">
+      <div className="space-y-4 p-4">
         <div>
           <h3 className="font-semibold text-slate-900">{roomType.name}</h3>
           <p className="text-xs text-slate-500">{roomType.code || '—'}</p>
         </div>
-        <div className="flex items-center justify-between text-sm">
-          <span className="font-medium text-primary-700">{formatCurrency(roomType.basePrice)}</span>
+        <div className="rounded-2xl bg-slate-50 p-3">
+          <div className="flex items-center justify-between text-sm">
+          <span className="inline-flex items-center gap-1 font-semibold text-primary-700"><IndianRupee className="h-3.5 w-3.5" /> {formatCurrency(roomType.basePrice)}</span>
           {roomType.weekendPrice ? (
             <span className="text-slate-500">W/E {formatCurrency(roomType.weekendPrice)}</span>
           ) : null}
+          </div>
+          <div className="mt-2 grid grid-cols-3 gap-2 text-center text-xs">
+            <div className="rounded-xl bg-white p-2">
+              <p className="font-semibold text-slate-900">{roomType.linkedRoomsCount ?? roomType.totalRooms ?? 0}</p>
+              <p className="text-slate-500">Rooms</p>
+            </div>
+            <div className="rounded-xl bg-white p-2">
+              <p className="font-semibold text-emerald-700">{roomType.availableRoomsCount ?? '—'}</p>
+              <p className="text-slate-500">Avail</p>
+            </div>
+            <div className="rounded-xl bg-white p-2">
+              <p className="font-semibold text-slate-900">{roomType.bookingCount ?? '—'}</p>
+              <p className="text-slate-500">Bookings</p>
+            </div>
+          </div>
         </div>
         <div className="flex items-center gap-4 text-xs text-slate-500">
           <span className="inline-flex items-center gap-1"><Users className="h-3.5 w-3.5" /> {roomType.maxGuests} guests</span>
           {roomType.bedType ? <span>{capitalize(roomType.bedType)}</span> : null}
+          {roomType.revenue !== undefined ? <span className="inline-flex items-center gap-1"><CalendarCheck className="h-3.5 w-3.5" /> {formatCurrency(roomType.revenue)}</span> : null}
         </div>
         <div className="flex gap-2 text-xs">
           {roomType.isVisibleOnWebsite && (

@@ -5,12 +5,14 @@ import { getParam } from '../../utils/params';
 import { ListStaffQuery } from './validation';
 import { ViewerContext } from './staff.types';
 import {
+  addStaffNoteService,
   assignStaffToHotelService,
   createStaffService,
   deleteStaffService,
   getStaffByIdService,
   getStaffStatsService,
   listStaffService,
+  recordStaffAttendanceService,
   updateStaffPermissionsService,
   updateStaffService,
   updateStaffStatusService,
@@ -30,6 +32,32 @@ export const listStaff = async (
   try {
     const result = await listStaffService(req.query as unknown as ListStaffQuery, getViewer(req));
     sendSuccess(res, result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const recordStaffAttendance = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const staff = await recordStaffAttendanceService(getParam(req.params.id), req.body, getViewer(req));
+    sendSuccess(res, staff, 'Staff attendance recorded successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const addStaffNote = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const staff = await addStaffNoteService(getParam(req.params.id), req.body, getViewer(req));
+    sendSuccess(res, staff, 'Staff note added successfully');
   } catch (error) {
     next(error);
   }

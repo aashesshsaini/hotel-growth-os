@@ -411,8 +411,8 @@ export const getGuestHistoryService = async (
 
   const whatsappSummary = {
     totalMessages: whatsappMessages.length,
-    inbound: whatsappMessages.filter((m) => m.direction === 'incoming').length,
-    outbound: whatsappMessages.filter((m) => m.direction === 'outgoing').length,
+    incoming: whatsappMessages.filter((m) => m.direction === 'incoming').length,
+    outgoing: whatsappMessages.filter((m) => m.direction === 'outgoing').length,
     lastMessageAt: whatsappMessages[0]?.createdAt,
   };
 
@@ -424,6 +424,7 @@ export const getGuestHistoryService = async (
     reviews,
     campaigns,
     whatsappMessages: isLimitedGuestViewer(viewer.role) ? [] : whatsappMessages,
+    whatsappSummary,
     summary: {
       totalSpend: guest.totalSpend,
       totalBookings: guest.totalBookings,

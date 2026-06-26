@@ -7,6 +7,7 @@ export const ROOM_STATUSES = [
   { value: 'maintenance', label: 'Maintenance' },
   { value: 'blocked', label: 'Blocked' },
   { value: 'out_of_order', label: 'Out of Order' },
+  { value: 'inspection_pending', label: 'Inspection Pending' },
 ];
 
 export const HOUSEKEEPING_STATUSES = [
@@ -35,14 +36,30 @@ export const emptyRoomForm = {
   wing: '',
   roomName: '',
   description: '',
+  capacity: undefined as number | undefined,
+  maxAdults: undefined as number | undefined,
+  maxChildren: undefined as number | undefined,
+  bedType: '',
+  viewType: '',
+  smokingPolicy: 'non_smoking',
   status: 'available',
   housekeepingStatus: 'clean',
   maintenanceStatus: 'none',
+  assignedHousekeeperId: '',
+  assignedMaintenanceStaffId: '',
   maxGuestsOverride: undefined as number | undefined,
   priceOverride: undefined as number | undefined,
   isPriceOverridden: false,
   isBookable: true,
   isVisibleToStaff: true,
+  cleaningNotes: '',
+  maintenanceNotes: '',
+  housekeepingSchedule: '',
+  maintenanceSchedule: '',
+  internalNotes: '',
+  amenitiesOverride: [] as string[],
+  images: [] as import('@/types').RoomImage[],
+  inspectionChecklist: [] as import('@/types').RoomInspectionItem[],
   notes: '',
   tags: [] as string[],
 };
@@ -66,6 +83,7 @@ export const STATUS_COLORS: Record<string, string> = {
   maintenance: 'bg-orange-100 text-orange-800',
   blocked: 'bg-red-100 text-red-800',
   out_of_order: 'bg-slate-200 text-slate-800',
+  inspection_pending: 'bg-purple-100 text-purple-800',
 };
 
 export const HK_COLORS: Record<string, string> = {
@@ -84,4 +102,4 @@ export const MAINT_COLORS: Record<string, string> = {
   resolved: 'bg-emerald-50 text-emerald-700',
 };
 
-export const MAINTENANCE_ROLES = ['hotel_owner', 'hotel_manager', 'maintenance_staff'];
+export const MAINTENANCE_ROLES = ['hotel_owner', 'hotel_manager', 'maintenance_staff', 'maintenance'];

@@ -11,7 +11,7 @@ export const STAFF_ROLES = [
 
 export type StaffRole = (typeof STAFF_ROLES)[number];
 
-export const STAFF_STATUSES = ['active', 'inactive', 'suspended'] as const;
+export const STAFF_STATUSES = ['active', 'inactive', 'on_duty', 'off_duty', 'leave', 'suspended', 'resigned'] as const;
 
 export type StaffStatus = (typeof STAFF_STATUSES)[number];
 

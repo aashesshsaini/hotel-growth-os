@@ -3,6 +3,7 @@ import {
   createRoomType,
   deleteRoomType,
   getPublicRoomTypes,
+  getRoomTypeAvailability,
   getRoomTypeById,
   getRoomTypeStats,
   listRoomTypes,
@@ -18,6 +19,7 @@ import {
   createRoomTypeSchema,
   listRoomTypesQuerySchema,
   publicHotelSlugParamSchema,
+  roomTypeAvailabilityQuerySchema,
   roomTypeIdParamSchema,
   roomTypeImageIdParamSchema,
   updateRoomTypeAmenitiesSchema,
@@ -54,6 +56,14 @@ router.get(
   validate(listRoomTypesQuerySchema, 'query'),
   requireHotelId,
   listRoomTypes
+);
+
+router.get(
+  '/:id/availability',
+  roleMiddleware(...ROOM_TYPE_VIEW_ROLES, 'super_admin'),
+  validate(roomTypeIdParamSchema, 'params'),
+  validate(roomTypeAvailabilityQuerySchema, 'query'),
+  getRoomTypeAvailability
 );
 
 router.get(

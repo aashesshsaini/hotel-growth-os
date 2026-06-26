@@ -6,6 +6,7 @@ import type {
   RoomTypeFormData,
   RoomTypeImage,
   RoomTypeStats,
+  RoomTypeAvailability,
 } from '@/types';
 
 export const getRoomTypes = async (params?: ListParams): Promise<PaginatedResponse<RoomType>> => {
@@ -18,6 +19,13 @@ export const getRoomTypeStats = async (): Promise<RoomTypeStats> => {
 
 export const getRoomTypeById = async (id: string): Promise<RoomType> => {
   return apiGet<RoomType>(`/room-types/${id}`);
+};
+
+export const getRoomTypeAvailability = async (
+  id: string,
+  params?: { checkInDate?: string; checkOutDate?: string }
+): Promise<RoomTypeAvailability> => {
+  return apiGet<RoomTypeAvailability>(`/room-types/${id}/availability`, params);
 };
 
 export const createRoomType = async (payload: RoomTypeFormData): Promise<RoomType> => {

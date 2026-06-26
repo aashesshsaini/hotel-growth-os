@@ -88,6 +88,25 @@ const logAudit = async (
   });
 };
 
+const addRoomTimeline = (
+  room: IRoom,
+  action: string,
+  viewer: ViewerContext,
+  message?: string,
+  metadata?: Record<string, unknown>
+): void => {
+  room.timeline = [
+    ...(room.timeline ?? []),
+    {
+      action,
+      message,
+      createdBy: new Types.ObjectId(viewer.userId),
+      createdAt: new Date(),
+      metadata,
+    },
+  ];
+};
+
 const sanitizeRoom = (room: IRoom, includeAudit = false, auditLogs?: unknown[]): SanitizedRoom => {
   const doc = room.toObject ? room.toObject() : room;
   const sanitized: SanitizedRoom = {
@@ -133,6 +152,18 @@ const ensureRoomDefaults = async (room: IRoom): Promise<IRoom> => {
     room.tags = [];
     changed = true;
   }
+  if (!room.images) {
+    room.images = [];
+    changed = true;
+  }
+  if (!room.inspectionChecklist) {
+    room.inspectionChecklist = [];
+    changed = true;
+  }
+  if (!room.timeline) {
+    room.timeline = [];
+    changed = true;
+  }
   if (changed) return updateRoomRepository(room);
   return room;
 };
@@ -167,6 +198,12 @@ const buildListFilter = (query: ListRoomsQuery, hotelId: string): FilterQuery<IR
   if (query.wing) filter.wing = query.wing;
   if (query.isBookable !== undefined) filter.isBookable = query.isBookable;
   if (query.isBlocked !== undefined) filter.isBlocked = query.isBlocked;
+  if (query.minCapacity !== undefined) {
+    filter.$or = [
+      { capacity: { $gte: query.minCapacity } },
+      { maxGuestsOverride: { $gte: query.minCapacity } },
+    ];
+  }
   if (query.createdFrom || query.createdTo) {
     filter.createdAt = {};
     if (query.createdFrom) filter.createdAt.$gte = query.createdFrom;
@@ -186,18 +223,43 @@ const applyRoomInput = (room: IRoom, input: UpdateRoomInput | CreateRoomInput): 
   if (input.wing !== undefined) room.wing = input.wing;
   if (input.roomName !== undefined) room.roomName = input.roomName;
   if (input.description !== undefined) room.description = input.description;
+  if (input.capacity !== undefined) room.capacity = input.capacity;
+  if (input.maxAdults !== undefined) room.maxAdults = input.maxAdults;
+  if (input.maxChildren !== undefined) room.maxChildren = input.maxChildren;
+  if (input.bedType !== undefined) room.bedType = input.bedType;
+  if (input.viewType !== undefined) room.viewType = input.viewType;
+  if (input.smokingPolicy !== undefined) room.smokingPolicy = input.smokingPolicy;
   if (input.maxGuestsOverride !== undefined) room.maxGuestsOverride = input.maxGuestsOverride;
   if (input.priceOverride !== undefined) room.priceOverride = input.priceOverride;
   if (input.isPriceOverridden !== undefined) room.isPriceOverridden = input.isPriceOverridden;
   if (input.isBookable !== undefined) room.isBookable = input.isBookable;
   if (input.isVisibleToStaff !== undefined) room.isVisibleToStaff = input.isVisibleToStaff;
   if (input.amenitiesOverride !== undefined) room.amenitiesOverride = input.amenitiesOverride;
+  if (input.images !== undefined) room.images = input.images;
+  if (input.cleaningNotes !== undefined) room.cleaningNotes = input.cleaningNotes;
+  if (input.maintenanceNotes !== undefined) room.maintenanceNotes = input.maintenanceNotes;
+  if (input.housekeepingSchedule !== undefined) room.housekeepingSchedule = input.housekeepingSchedule;
+  if (input.maintenanceSchedule !== undefined) room.maintenanceSchedule = input.maintenanceSchedule;
+  if (input.inspectionChecklist !== undefined) {
+    room.inspectionChecklist = input.inspectionChecklist.map((item) => ({
+      item: item.item,
+      isChecked: item.isChecked ?? false,
+      notes: item.notes,
+    }));
+  }
   if (input.notes !== undefined) room.notes = input.notes;
+  if (input.internalNotes !== undefined) room.internalNotes = input.internalNotes;
   if (input.tags !== undefined) room.tags = input.tags;
   if (input.metadata !== undefined) room.metadata = input.metadata;
   if (input.status) room.status = input.status;
   if (input.housekeepingStatus) room.housekeepingStatus = input.housekeepingStatus;
   if (input.maintenanceStatus) room.maintenanceStatus = input.maintenanceStatus;
+  if (input.assignedHousekeeperId !== undefined) {
+    room.assignedHousekeeperId = input.assignedHousekeeperId ? new Types.ObjectId(input.assignedHousekeeperId) : undefined;
+  }
+  if (input.assignedMaintenanceStaffId !== undefined) {
+    room.assignedMaintenanceStaffId = input.assignedMaintenanceStaffId ? new Types.ObjectId(input.assignedMaintenanceStaffId) : undefined;
+  }
 };
 
 export const listRoomsService = async (
@@ -268,9 +330,17 @@ export const createRoomService = async (
     wing: input.wing,
     roomName: input.roomName,
     description: input.description,
+    capacity: input.capacity,
+    maxAdults: input.maxAdults,
+    maxChildren: input.maxChildren,
+    bedType: input.bedType,
+    viewType: input.viewType,
+    smokingPolicy: input.smokingPolicy ?? 'non_smoking',
     status: input.status ?? 'available',
     housekeepingStatus: input.housekeepingStatus ?? 'clean',
     maintenanceStatus: input.maintenanceStatus ?? 'none',
+    assignedHousekeeperId: input.assignedHousekeeperId ? new Types.ObjectId(input.assignedHousekeeperId) : undefined,
+    assignedMaintenanceStaffId: input.assignedMaintenanceStaffId ? new Types.ObjectId(input.assignedMaintenanceStaffId) : undefined,
     maxGuestsOverride: input.maxGuestsOverride,
     priceOverride: input.priceOverride,
     isPriceOverridden: input.isPriceOverridden ?? false,
@@ -278,8 +348,23 @@ export const createRoomService = async (
     isVisibleToStaff: input.isVisibleToStaff ?? true,
     isBlocked: false,
     amenitiesOverride: input.amenitiesOverride ?? [],
+    images: input.images ?? [],
+    cleaningNotes: input.cleaningNotes,
+    maintenanceNotes: input.maintenanceNotes,
+    housekeepingSchedule: input.housekeepingSchedule,
+    maintenanceSchedule: input.maintenanceSchedule,
+    inspectionChecklist: input.inspectionChecklist ?? [],
     notes: input.notes,
+    internalNotes: input.internalNotes,
     tags: input.tags ?? [],
+    timeline: [
+      {
+        action: 'room.created',
+        message: `Room ${input.roomNumber} created`,
+        createdBy: viewer.userId,
+        createdAt: new Date(),
+      },
+    ],
     metadata: input.metadata,
     createdBy: viewer.userId,
     updatedBy: viewer.userId,
@@ -367,6 +452,7 @@ export const updateRoomService = async (
   }
 
   applyRoomInput(room, input);
+  addRoomTimeline(room, 'room.updated', viewer, 'Room details updated');
   room.updatedBy = new Types.ObjectId(viewer.userId);
   const updated = await updateRoomRepository(room);
   await updated.populate('roomTypeId', 'name basePrice maxGuests');
@@ -391,6 +477,10 @@ export const updateRoomStatusService = async (
   const previousStatus = room.status;
   room.status = input.status;
   if (input.notes !== undefined) room.notes = input.notes;
+  addRoomTimeline(room, 'room.status_changed', viewer, input.notes || `Status changed to ${input.status}`, {
+    previousStatus,
+    newStatus: input.status,
+  });
 
   if (input.status === 'dirty') room.housekeepingStatus = 'dirty';
   if (input.status === 'cleaning') room.housekeepingStatus = 'cleaning_in_progress';
@@ -526,6 +616,10 @@ export const blockRoomService = async (
   room.blockedFrom = input.blockedFrom;
   room.blockedTo = input.blockedTo;
   room.updatedBy = new Types.ObjectId(viewer.userId);
+  addRoomTimeline(room, 'room.blocked', viewer, input.blockedReason, {
+    blockedFrom: input.blockedFrom,
+    blockedTo: input.blockedTo,
+  });
 
   const updated = await updateRoomRepository(room);
   await updated.populate('roomTypeId', 'name basePrice maxGuests');
@@ -547,6 +641,7 @@ export const unblockRoomService = async (
   room.isBookable = true;
   room.status = room.currentBookingId ? 'occupied' : 'available';
   room.updatedBy = new Types.ObjectId(viewer.userId);
+  addRoomTimeline(room, 'room.unblocked', viewer, 'Room unblocked');
 
   const updated = await updateRoomRepository(room);
   await updated.populate('roomTypeId', 'name basePrice maxGuests');
@@ -566,6 +661,12 @@ export const markRoomMaintenanceService = async (
   const previous = room.maintenanceStatus;
   room.maintenanceStatus = input.maintenanceStatus;
   if (input.notes) room.notes = input.notes;
+  if (input.maintenanceStatus === 'resolved' || input.maintenanceStatus === 'none') {
+    room.maintenanceNotes = input.notes ?? room.maintenanceNotes;
+  } else {
+    room.maintenanceNotes = input.notes ?? room.maintenanceNotes;
+    room.maintenanceSchedule = room.maintenanceSchedule ?? new Date();
+  }
 
   const syncedStatus = syncStatusFromMaintenance(input.maintenanceStatus);
   if (syncedStatus) {
@@ -574,6 +675,10 @@ export const markRoomMaintenanceService = async (
   }
 
   room.updatedBy = new Types.ObjectId(viewer.userId);
+  addRoomTimeline(room, 'room.maintenance_changed', viewer, input.notes || `Maintenance changed to ${input.maintenanceStatus}`, {
+    previous,
+    new: input.maintenanceStatus,
+  });
   const updated = await updateRoomRepository(room);
   await updated.populate('roomTypeId', 'name basePrice maxGuests');
   await logAudit(
@@ -598,6 +703,13 @@ export const updateHousekeepingStatusService = async (
   const previous = room.housekeepingStatus;
   room.housekeepingStatus = input.housekeepingStatus;
   if (input.notes) room.notes = input.notes;
+  room.cleaningNotes = input.notes ?? room.cleaningNotes;
+  if (input.housekeepingStatus === 'clean' || input.housekeepingStatus === 'inspected') {
+    room.lastCleanedAt = new Date();
+  }
+  if (input.housekeepingStatus === 'inspected') {
+    room.lastInspectedAt = new Date();
+  }
 
   const syncedStatus = syncStatusFromHousekeeping(input.housekeepingStatus, room.status);
   if (syncedStatus && !room.currentBookingId) {
@@ -606,6 +718,10 @@ export const updateHousekeepingStatusService = async (
   }
 
   room.updatedBy = new Types.ObjectId(viewer.userId);
+  addRoomTimeline(room, 'room.housekeeping_changed', viewer, input.notes || `Housekeeping changed to ${input.housekeepingStatus}`, {
+    previous,
+    new: input.housekeepingStatus,
+  });
   const updated = await updateRoomRepository(room);
   await updated.populate('roomTypeId', 'name basePrice maxGuests');
   await logAudit(

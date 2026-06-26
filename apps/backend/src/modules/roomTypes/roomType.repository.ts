@@ -1,5 +1,5 @@
 import { FilterQuery, Types } from 'mongoose';
-import { AuditLog, Hotel, Room, RoomType } from '../../models';
+import { AuditLog, Booking, Hotel, Room, RoomType } from '../../models';
 import { IRoomType } from '../../models/RoomType';
 import { PaginationOptions, paginate } from '../../utils/pagination';
 import { PaginatedResponse } from '@hotel-growth-os/shared';
@@ -161,6 +161,8 @@ export const getRoomTypeStatsRepository = async (hotelId: string): Promise<RoomT
     priceStats,
     roomTypesWithoutImages,
     totalRoomsLinked,
+    roomAvailabilityAgg,
+    bookingAgg,
   ] = await Promise.all([
     RoomType.countDocuments(baseFilter),
     RoomType.countDocuments({ ...baseFilter, status: 'active' }),
@@ -186,9 +188,64 @@ export const getRoomTypeStatsRepository = async (hotelId: string): Promise<RoomT
       { $match: { hotelId: new Types.ObjectId(hotelId), isDeleted: { $ne: true } } },
       { $group: { _id: null, count: { $sum: 1 } } },
     ]),
+    Room.aggregate([
+      { $match: { hotelId: new Types.ObjectId(hotelId), isDeleted: { $ne: true } } },
+      {
+        $group: {
+          _id: '$roomTypeId',
+          linkedRooms: { $sum: 1 },
+          availableRooms: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ['$status', 'available'] },
+                    { $ne: ['$isBookable', false] },
+                    { $ne: ['$isBlocked', true] },
+                  ],
+                },
+                1,
+                0,
+              ],
+            },
+          },
+          occupiedRooms: { $sum: { $cond: [{ $eq: ['$status', 'occupied'] }, 1, 0] } },
+        },
+      },
+    ]),
+    Booking.aggregate([
+      { $match: { hotelId: new Types.ObjectId(hotelId), isDeleted: { $ne: true }, roomTypeId: { $exists: true, $ne: null } } },
+      {
+        $group: {
+          _id: '$roomTypeId',
+          bookings: { $sum: 1 },
+          revenue: { $sum: '$paidAmount' },
+        },
+      },
+      { $sort: { bookings: -1, revenue: -1 } },
+      { $limit: 5 },
+    ]),
   ]);
 
   const prices = priceStats[0] ?? { averageBasePrice: 0, lowestPrice: 0, highestPrice: 0 };
+  const totalAvailableRooms = roomAvailabilityAgg.reduce((sum: number, item: { availableRooms: number }) => sum + item.availableRooms, 0);
+  const totalOccupiedRooms = roomAvailabilityAgg.reduce((sum: number, item: { occupiedRooms: number }) => sum + item.occupiedRooms, 0);
+  const totalBookings = bookingAgg.reduce((sum: number, item: { bookings: number }) => sum + item.bookings, 0);
+  const totalRevenue = bookingAgg.reduce((sum: number, item: { revenue: number }) => sum + item.revenue, 0);
+  const popularRoomTypeIds = [
+    ...new Set([
+      ...bookingAgg.map((item: { _id: Types.ObjectId }) => item._id?.toString()).filter(Boolean),
+      ...roomAvailabilityAgg.map((item: { _id: Types.ObjectId }) => item._id?.toString()).filter(Boolean),
+    ]),
+  ];
+  const popularRoomTypeDocs = await RoomType.find({ _id: { $in: popularRoomTypeIds } }).select('name');
+  const popularNameMap = new Map(popularRoomTypeDocs.map((rt) => [rt._id.toString(), rt.name]));
+  const roomAvailabilityMap = new Map(
+    roomAvailabilityAgg.map((item: { _id: Types.ObjectId; linkedRooms: number; availableRooms: number }) => [
+      item._id.toString(),
+      item,
+    ])
+  );
 
   return {
     totalRoomTypes,
@@ -200,6 +257,22 @@ export const getRoomTypeStatsRepository = async (hotelId: string): Promise<RoomT
     lowestPrice: prices.lowestPrice ?? 0,
     highestPrice: prices.highestPrice ?? 0,
     totalRoomsLinked: totalRoomsLinked[0]?.count ?? 0,
+    totalAvailableRooms,
+    totalOccupiedRooms,
+    totalBookings,
+    totalRevenue,
+    popularRoomTypes: bookingAgg.map((item: { _id: Types.ObjectId; bookings: number; revenue: number }) => {
+      const id = item._id.toString();
+      const availability = roomAvailabilityMap.get(id);
+      return {
+        id,
+        name: popularNameMap.get(id) ?? 'Unknown',
+        bookings: item.bookings,
+        revenue: item.revenue,
+        linkedRooms: availability?.linkedRooms ?? 0,
+        availableRooms: availability?.availableRooms ?? 0,
+      };
+    }),
     roomTypesWithoutImages,
   };
 };

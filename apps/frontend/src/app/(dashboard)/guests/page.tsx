@@ -1,13 +1,27 @@
 'use client';
 
-import { Eye, Pencil, Plus, Tags } from 'lucide-react';
+import {
+  Building2,
+  CalendarPlus,
+  Clock,
+  Crown,
+  Eye,
+  MessageCircle,
+  Pencil,
+  Phone,
+  Plus,
+  RefreshCw,
+  Star,
+  Tags,
+  UserPlus,
+  Users,
+} from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActionMenu } from '@/components/ActionMenu';
 import { ConfirmDialog } from '@/components/Modal';
 import { DataTable } from '@/components/DataTable';
 import { FormInput } from '@/components/FormInput';
 import { Modal } from '@/components/Modal';
-import { PageHeader } from '@/components/PageHeader';
 import { useToast } from '@/components/Toast';
 import { GuestBadges, GuestStatusBadge } from '@/features/guests/GuestBadges';
 import { GuestDetailDrawer } from '@/features/guests/GuestDetailDrawer';
@@ -46,6 +60,76 @@ import type { Guest, GuestFormData, GuestHistory, GuestStats } from '@/types';
 import { getEntityId } from '@/types';
 import { capitalize, formatCurrency, formatDate } from '@/utils/format';
 
+type GuestSegment = 'all' | 'new' | 'repeat' | 'vip' | 'corporate' | 'inactive';
+
+const getMonthStartInput = () => {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+};
+
+const openWhatsApp = (phone: string) => {
+  const normalized = phone.replace(/\D/g, '');
+  if (!normalized) return;
+  window.open(`https://wa.me/${normalized}`, '_blank', 'noopener,noreferrer');
+};
+
+const GuestSegmentBar = ({
+  active,
+  onChange,
+  stats,
+}: {
+  active: GuestSegment;
+  onChange: (segment: GuestSegment) => void;
+  stats: GuestStats | null;
+}) => {
+  const segments: Array<{
+    id: GuestSegment;
+    label: string;
+    helper: string;
+    icon: React.ElementType;
+    count?: number;
+  }> = [
+    { id: 'all', label: 'All Guests', helper: 'Complete CRM list', icon: Users, count: stats?.totalGuests },
+    { id: 'new', label: 'New Guests', helper: 'This month', icon: UserPlus, count: stats?.newGuestsThisMonth },
+    { id: 'repeat', label: 'Repeat Guests', helper: 'Loyal customers', icon: RefreshCw, count: stats?.repeatGuests },
+    { id: 'vip', label: 'VIP Guests', helper: 'High-touch profiles', icon: Crown, count: stats?.vipGuests },
+    { id: 'corporate', label: 'Corporate', helper: 'Business segment', icon: Building2 },
+    { id: 'inactive', label: 'Inactive', helper: 'No booking recently', icon: Clock, count: stats?.inactiveGuests },
+  ];
+
+  return (
+    <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+      {segments.map((segment) => {
+        const Icon = segment.icon;
+        const selected = active === segment.id;
+        return (
+          <button
+            key={segment.id}
+            type="button"
+            onClick={() => onChange(segment.id)}
+            className={`rounded-2xl border p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+              selected
+                ? 'border-indigo-300 bg-indigo-50 text-indigo-900 ring-2 ring-indigo-100'
+                : 'border-slate-200 bg-white text-slate-700'
+            }`}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div className={`rounded-xl p-2 ${selected ? 'bg-white text-indigo-700' : 'bg-slate-50 text-slate-500'}`}>
+                <Icon className="h-5 w-5" />
+              </div>
+              {segment.count !== undefined && (
+                <span className="text-lg font-bold text-slate-950">{segment.count}</span>
+              )}
+            </div>
+            <div className="mt-3 text-sm font-semibold">{segment.label}</div>
+            <div className="mt-1 text-xs text-slate-500">{segment.helper}</div>
+          </button>
+        );
+      })}
+    </div>
+  );
+};
+
 export default function GuestsPage() {
   const { user } = useAuth();
   const { showToast } = useToast();
@@ -55,6 +139,7 @@ export default function GuestsPage() {
 
   const [stats, setStats] = useState<GuestStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
+  const [segmentFilter, setSegmentFilter] = useState<GuestSegment>('all');
 
   const [guestTypeFilter, setGuestTypeFilter] = useState('');
   const [sourceFilter, setSourceFilter] = useState('');
@@ -74,12 +159,14 @@ export default function GuestsPage() {
 
   const listParams = useMemo(
     () => ({
-      guestType: guestTypeFilter || undefined,
+      guestType: segmentFilter === 'corporate' ? 'corporate' : guestTypeFilter || undefined,
       source: sourceFilter || undefined,
       city: cityFilter || undefined,
-      isRepeatGuest: repeatFilter ? repeatFilter === 'true' : undefined,
-      isVip: vipFilter ? vipFilter === 'true' : undefined,
+      isRepeatGuest: segmentFilter === 'repeat' ? true : repeatFilter ? repeatFilter === 'true' : undefined,
+      isVip: segmentFilter === 'vip' ? true : vipFilter ? vipFilter === 'true' : undefined,
       isBlacklisted: blacklistedFilter ? blacklistedFilter === 'true' : undefined,
+      createdFrom: segmentFilter === 'new' ? getMonthStartInput() : undefined,
+      notBookedSinceDays: segmentFilter === 'inactive' ? 180 : undefined,
       birthdayMonth: birthdayMonthFilter ? Number(birthdayMonthFilter) : undefined,
       anniversaryMonth: anniversaryMonthFilter ? Number(anniversaryMonthFilter) : undefined,
       minTotalSpend: minSpendFilter ? Number(minSpendFilter) : undefined,
@@ -91,6 +178,7 @@ export default function GuestsPage() {
       campaignEligible: campaignEligibleFilter ? campaignEligibleFilter === 'true' : undefined,
     }),
     [
+      segmentFilter,
       guestTypeFilter,
       sourceFilter,
       cityFilter,
@@ -117,10 +205,15 @@ export default function GuestsPage() {
     []
   );
 
-  const { data, pagination, isLoading, error, setPage, setSearch, refresh } = usePaginatedQuery<Guest>({
+  const { data, pagination, isLoading, error, setPage, setSearch, setParams, refresh } = usePaginatedQuery<Guest>({
     fetchFn: fetchGuests,
     enabled: canView,
   });
+
+  useEffect(() => {
+    if (!canView) return;
+    setParams((current) => ({ ...current, ...listParams, page: 1 }));
+  }, [canView, listParams, setParams]);
 
   useEffect(() => {
     if (!canView) return;
@@ -132,6 +225,7 @@ export default function GuestsPage() {
   }, [canView, data.length]);
 
   const resetFilters = () => {
+    setSegmentFilter('all');
     setGuestTypeFilter('');
     setSourceFilter('');
     setCityFilter('');
@@ -274,20 +368,38 @@ export default function GuestsPage() {
   }
 
   return (
-    <div>
-      <PageHeader
-        title="Guest CRM"
-        subtitle="Manage guest profiles, history, and campaign targeting"
-        actions={
-          canCreate ? (
-            <button type="button" className="btn-primary" onClick={openCreate}>
-              <Plus className="mr-2 h-4 w-4" /> Add Guest
-            </button>
-          ) : undefined
-        }
-      />
+    <div className="space-y-6">
+      <section className="overflow-hidden rounded-3xl border border-indigo-100 bg-white shadow-sm">
+        <div className="relative bg-gradient-to-br from-slate-950 via-indigo-700 to-purple-700 px-5 py-6 text-white sm:px-6 lg:px-8">
+          <div className="absolute right-0 top-0 h-44 w-44 rounded-full bg-white/10 blur-3xl" />
+          <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.25em] text-indigo-100">
+                Guest Relationship Center
+              </p>
+              <h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">Guest CRM</h1>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-indigo-100">
+                Manage guest profiles, segmentation, stay history, payment context, reviews, notes, and campaign readiness from one premium CRM workspace.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <button type="button" className="rounded-xl bg-white/15 px-4 py-2 text-sm font-semibold text-white ring-1 ring-white/25 hover:bg-white/20" onClick={() => refresh()}>
+                <RefreshCw className="mr-2 inline h-4 w-4" />
+                Refresh
+              </button>
+              {canCreate && (
+                <button type="button" className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-50" onClick={openCreate}>
+                  <Plus className="mr-2 inline h-4 w-4" />
+                  Add Guest
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
 
       <GuestStatsCards stats={stats} isLoading={statsLoading} />
+      <GuestSegmentBar active={segmentFilter} onChange={setSegmentFilter} stats={stats} />
 
       <GuestFilters
         guestTypeFilter={guestTypeFilter}
@@ -324,6 +436,9 @@ export default function GuestsPage() {
       />
 
       <DataTable
+        searchPlaceholder="Search guests by name, phone, email, or city..."
+        emptyTitle="No guests found"
+        emptyDescription="Create a guest profile or adjust filters to see CRM records here."
         columns={[
           {
             key: 'name',
@@ -359,6 +474,11 @@ export default function GuestsPage() {
               <ActionMenu
                 items={[
                   { label: 'View profile', icon: Eye, onClick: () => void openDetail(row) },
+                  { label: 'Call guest', icon: Phone, onClick: () => { window.location.href = `tel:${row.phone}`; } },
+                  { label: 'WhatsApp guest', icon: MessageCircle, onClick: () => openWhatsApp(row.phone) },
+                  { label: 'Create booking', icon: CalendarPlus, onClick: () => { window.location.href = `/bookings?guestId=${getEntityId(row)}`; }, dividerBefore: true },
+                  { label: 'Add follow-up', icon: Clock, onClick: () => { window.location.href = `/tasks?guestId=${getEntityId(row)}`; } },
+                  { label: 'Request review', icon: Star, onClick: () => { window.location.href = `/reviews?guestId=${getEntityId(row)}`; } },
                   { label: 'Edit guest', icon: Pencil, onClick: () => openEdit(row), hidden: !canCreate },
                   { label: 'Add tags', icon: Tags, onClick: () => { setDetailGuest(row); setTagsInput((row.tags ?? []).join(', ')); setShowTags(true); }, hidden: !canCreate },
                 ]}

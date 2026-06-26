@@ -1,8 +1,10 @@
 import { FilterQuery, Types } from 'mongoose';
+import { Booking, Room } from '../../models';
 import { IRoomType } from '../../models/RoomType';
 import {
   CreateRoomTypeInput,
   ListRoomTypesQuery,
+  RoomTypeAvailabilityQuery,
   UpdateRoomTypeAmenitiesInput,
   UpdateRoomTypeInput,
   UpdateRoomTypePricingInput,
@@ -234,10 +236,55 @@ export const listRoomTypesService = async (
     sortBy: query.sortBy ?? 'sortOrder',
     sortOrder: query.sortOrder,
   });
+  const roomTypeIds = result.data.map((item) => item._id);
+  const [roomMetrics, bookingMetrics] = await Promise.all([
+    Room.aggregate([
+      { $match: { hotelId: new Types.ObjectId(hotelId), roomTypeId: { $in: roomTypeIds }, isDeleted: { $ne: true } } },
+      {
+        $group: {
+          _id: '$roomTypeId',
+          linkedRoomsCount: { $sum: 1 },
+          availableRoomsCount: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ['$status', 'available'] },
+                    { $ne: ['$isBookable', false] },
+                    { $ne: ['$isBlocked', true] },
+                  ],
+                },
+                1,
+                0,
+              ],
+            },
+          },
+          occupiedRoomsCount: { $sum: { $cond: [{ $eq: ['$status', 'occupied'] }, 1, 0] } },
+        },
+      },
+    ]),
+    Booking.aggregate([
+      { $match: { hotelId: new Types.ObjectId(hotelId), roomTypeId: { $in: roomTypeIds }, isDeleted: { $ne: true } } },
+      { $group: { _id: '$roomTypeId', bookingCount: { $sum: 1 }, revenue: { $sum: '$paidAmount' } } },
+    ]),
+  ]);
+  const roomMetricMap = new Map(roomMetrics.map((metric) => [metric._id.toString(), metric]));
+  const bookingMetricMap = new Map(bookingMetrics.map((metric) => [metric._id.toString(), metric]));
 
   return {
     ...result,
-    data: result.data.map((item) => sanitizeRoomType(item)),
+    data: result.data.map((item) => {
+      const sanitized = sanitizeRoomType(item);
+      const id = item._id.toString();
+      const roomMetric = roomMetricMap.get(id);
+      const bookingMetric = bookingMetricMap.get(id);
+      sanitized.linkedRoomsCount = roomMetric?.linkedRoomsCount ?? 0;
+      sanitized.availableRoomsCount = roomMetric?.availableRoomsCount ?? 0;
+      sanitized.occupiedRoomsCount = roomMetric?.occupiedRoomsCount ?? 0;
+      sanitized.bookingCount = bookingMetric?.bookingCount ?? 0;
+      sanitized.revenue = bookingMetric?.revenue ?? 0;
+      return sanitized;
+    }),
   };
 };
 
@@ -257,7 +304,27 @@ export const getRoomTypeByIdService = async (
 ): Promise<SanitizedRoomType> => {
   assertCanView(viewer.role);
   const roomType = await getRoomTypeOrThrow(id, viewer);
-  const linkedRoomsCount = await countRoomsByRoomTypeRepository(id);
+  const [linkedRoomsCount, availableRoomsCount, occupiedRoomsCount, bookingAgg] = await Promise.all([
+    countRoomsByRoomTypeRepository(id),
+    Room.countDocuments({
+      roomTypeId: id,
+      hotelId: roomType.hotelId,
+      status: 'available',
+      isBookable: { $ne: false },
+      isBlocked: { $ne: true },
+      isDeleted: { $ne: true },
+    }),
+    Room.countDocuments({
+      roomTypeId: id,
+      hotelId: roomType.hotelId,
+      status: 'occupied',
+      isDeleted: { $ne: true },
+    }),
+    Booking.aggregate([
+      { $match: { roomTypeId: new Types.ObjectId(id), hotelId: roomType.hotelId, isDeleted: { $ne: true } } },
+      { $group: { _id: '$roomTypeId', bookings: { $sum: 1 }, revenue: { $sum: '$paidAmount' } } },
+    ]),
+  ]);
 
   let auditLogs: unknown[] | undefined;
   if (canManageRoomTypes(viewer.role)) {
@@ -266,7 +333,63 @@ export const getRoomTypeByIdService = async (
 
   const sanitized = sanitizeRoomType(roomType, !!auditLogs, auditLogs);
   sanitized.linkedRoomsCount = linkedRoomsCount;
+  sanitized.availableRoomsCount = availableRoomsCount;
+  sanitized.occupiedRoomsCount = occupiedRoomsCount;
+  sanitized.bookingCount = bookingAgg[0]?.bookings ?? 0;
+  sanitized.revenue = bookingAgg[0]?.revenue ?? 0;
   return sanitized;
+};
+
+export const getRoomTypeAvailabilityService = async (
+  id: string,
+  query: RoomTypeAvailabilityQuery,
+  viewer: ViewerContext
+) => {
+  assertCanView(viewer.role);
+  const roomType = await getRoomTypeOrThrow(id, viewer);
+  const hotelId = roomType.hotelId;
+  const baseRoomFilter = {
+    hotelId,
+    roomTypeId: roomType._id,
+    isDeleted: { $ne: true },
+  };
+  const totalRooms = await Room.countDocuments(baseRoomFilter);
+  const sellableRooms = await Room.countDocuments({
+    ...baseRoomFilter,
+    isBookable: { $ne: false },
+    isBlocked: { $ne: true },
+    status: { $nin: ['maintenance', 'blocked', 'out_of_order'] },
+  });
+  let unavailableRooms = await Room.countDocuments({
+    ...baseRoomFilter,
+    status: { $in: ['occupied', 'reserved'] },
+  });
+
+  if (query.checkInDate && query.checkOutDate) {
+    if (query.checkOutDate <= query.checkInDate) {
+      throw new ValidationError('Check-out date must be after check-in date');
+    }
+    const overlappingRoomIds = await Booking.find({
+      hotelId,
+      roomTypeId: roomType._id,
+      isDeleted: { $ne: true },
+      status: { $nin: ['cancelled', 'checked_out', 'completed', 'no_show'] },
+      checkInDate: { $lt: query.checkOutDate },
+      checkOutDate: { $gt: query.checkInDate },
+    }).distinct('roomId');
+    unavailableRooms = overlappingRoomIds.filter(Boolean).length;
+  }
+
+  const availableRooms = Math.max(sellableRooms - unavailableRooms, 0);
+  return {
+    roomTypeId: roomType._id.toString(),
+    name: roomType.name,
+    totalRooms,
+    sellableRooms,
+    unavailableRooms,
+    availableRooms,
+    occupancyPercentage: totalRooms > 0 ? Math.round((unavailableRooms / totalRooms) * 100) : 0,
+  };
 };
 
 export const createRoomTypeService = async (
@@ -313,11 +436,13 @@ export const createRoomTypeService = async (
     coverImage: input.coverImage,
     cancellationPolicy: input.cancellationPolicy,
     checkInInstructions: input.checkInInstructions,
+    internalNotes: input.internalNotes,
     mealPlan: input.mealPlan ?? 'room_only',
     inventoryType: input.inventoryType ?? 'standard',
     status: input.status ?? 'active',
     isAvailableForBooking: input.isAvailableForBooking ?? true,
     isVisibleOnWebsite: input.isVisibleOnWebsite ?? true,
+    isPopular: input.isPopular ?? false,
     sortOrder: input.sortOrder ?? 0,
     tags: input.tags ?? [],
     metadata: input.metadata,
@@ -381,6 +506,7 @@ export const updateRoomTypeService = async (
   if (input.coverImage !== undefined) roomType.coverImage = input.coverImage;
   if (input.cancellationPolicy !== undefined) roomType.cancellationPolicy = input.cancellationPolicy;
   if (input.checkInInstructions !== undefined) roomType.checkInInstructions = input.checkInInstructions;
+  if (input.internalNotes !== undefined) roomType.internalNotes = input.internalNotes;
   if (input.mealPlan !== undefined) roomType.mealPlan = input.mealPlan;
   if (input.inventoryType !== undefined) roomType.inventoryType = input.inventoryType;
   if (input.status !== undefined) roomType.status = input.status;
@@ -390,6 +516,7 @@ export const updateRoomTypeService = async (
   if (input.isVisibleOnWebsite !== undefined) {
     roomType.isVisibleOnWebsite = input.isVisibleOnWebsite;
   }
+  if (input.isPopular !== undefined) roomType.isPopular = input.isPopular;
   if (input.sortOrder !== undefined) roomType.sortOrder = input.sortOrder;
   if (input.tags !== undefined) roomType.tags = input.tags;
   if (input.metadata !== undefined) roomType.metadata = input.metadata;

@@ -5,6 +5,9 @@ export const ROLES = [
   'reception_staff',
   'sales_staff',
   'accountant',
+  'housekeeping',
+  'maintenance',
+  'security',
 ] as const;
 
 export type UserRole = (typeof ROLES)[number];
@@ -15,4 +18,7 @@ export const HOTEL_ROLES: UserRole[] = [
   'reception_staff',
   'sales_staff',
   'accountant',
+  'housekeeping',
+  'maintenance',
+  'security',
 ];

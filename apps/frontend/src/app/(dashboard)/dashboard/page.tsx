@@ -4,12 +4,17 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowRight,
+  BarChart3,
   BedDouble,
+  Building2,
   CalendarCheck,
+  CalendarDays,
+  FileBarChart2,
   IndianRupee,
   Megaphone,
   MessageCircle,
   MessageSquare,
+  PartyPopper,
   Plus,
   RefreshCw,
   Star,
@@ -32,6 +37,11 @@ const emptyDashboard: DashboardResponse = {
     totalRooms: 0,
     occupiedRooms: 0,
     availableRooms: 0,
+    reservedRooms: 0,
+    maintenanceRooms: 0,
+    totalStaff: 0,
+    staffOnDuty: 0,
+    staffOnLeave: 0,
     occupancyPercentage: 0,
     totalRevenue: 0,
     pendingPayments: 0,
@@ -45,6 +55,8 @@ const emptyDashboard: DashboardResponse = {
   bookingOverview: {
     totalBookings: 0,
     todayBookings: 0,
+    upcomingCheckIns: 0,
+    upcomingCheckOuts: 0,
     confirmedBookings: 0,
     checkedInBookings: 0,
     cancelledBookings: 0,
@@ -55,6 +67,11 @@ const emptyDashboard: DashboardResponse = {
     paymentRevenue: 0,
     bookingPaidRevenue: 0,
     pendingPayments: 0,
+    todayRevenue: 0,
+    monthlyRevenue: 0,
+    collectionRate: 0,
+    outstandingAmount: 0,
+    refundedAmount: 0,
   },
   occupancy: {
     totalRooms: 0,
@@ -65,13 +82,46 @@ const emptyDashboard: DashboardResponse = {
   guestLeadActivity: {
     totalGuests: 0,
     newGuestsThisMonth: 0,
+    repeatGuests: 0,
+    vipGuests: 0,
     newEnquiries: 0,
     pendingFollowUps: 0,
     enquiryStatuses: {},
+    recentGuests: [],
+  },
+  corporateOverview: {
+    totalCompanies: 0,
+    activeClients: 0,
+    pipelineValue: 0,
+    totalRevenue: 0,
+    monthlyRevenue: 0,
+    outstandingAmount: 0,
+    pendingFollowUps: 0,
+    meetingsThisWeek: 0,
+    proposalsSent: 0,
+    statusBreakdown: {},
+  },
+  eventOverview: {
+    totalEvents: 0,
+    upcomingEvents: 0,
+    pipelineValue: 0,
+    totalRevenue: 0,
+    monthlyRevenue: 0,
+    outstandingAmount: 0,
+    pendingFollowUps: 0,
+    siteVisitsThisWeek: 0,
+    proposalsSent: 0,
+    convertedEvents: 0,
+    statusBreakdown: {},
   },
   reputation: {
     reviewCount: 0,
     averageRating: 0,
+    pendingReviewRequests: 0,
+    negativeReviews: 0,
+    newReviewsThisMonth: 0,
+    reputationScore: 0,
+    positiveReviews: 0,
   },
   growth: {
     activeCampaigns: 0,
@@ -238,6 +288,8 @@ export default function DashboardPage() {
 
   const dashboard = data || emptyDashboard;
   const summary = dashboard.summary;
+  const corporate = dashboard.corporateOverview;
+  const events = dashboard.eventOverview;
 
   const kpis = useMemo(
     () => [
@@ -279,21 +331,21 @@ export default function DashboardPage() {
       {
         title: 'Reviews',
         value: summary.reviewCount,
-        helper: `${summary.averageRating}/5 average rating`,
+        helper: `${summary.averageRating}/5 avg · ${summary.reputationScore ?? dashboard.reputation.reputationScore ?? 0}% reputation`,
         icon: <Star className="h-5 w-5" />,
         accent: 'rose' as const,
       },
       {
         title: 'Active Campaigns',
         value: summary.activeCampaigns,
-        helper: 'Scheduled or running campaigns',
+        helper: `${summary.campaignSent ?? 0} sent · ${summary.campaignBookings ?? 0} bookings`,
         icon: <Megaphone className="h-5 w-5" />,
         accent: 'indigo' as const,
       },
       {
         title: 'WhatsApp Automation',
         value: summary.whatsappAutomationCount,
-        helper: 'Outgoing automation messages',
+        helper: `${summary.whatsappDeliveryRate ?? 0}% delivered · ${summary.whatsappReadRate ?? 0}% read`,
         icon: <MessageCircle className="h-5 w-5" />,
         accent: 'emerald' as const,
       },
@@ -358,9 +410,23 @@ export default function DashboardPage() {
           <div className="space-y-3">
             <ProgressBar value={dashboard.occupancy.occupancyPercentage} />
             <MetricRow label="Confirmed Bookings" value={dashboard.bookingOverview.confirmedBookings} />
+            <MetricRow label="Upcoming Check-ins" value={dashboard.bookingOverview.upcomingCheckIns ?? 0} />
+            <MetricRow label="Upcoming Check-outs" value={dashboard.bookingOverview.upcomingCheckOuts ?? 0} />
             <MetricRow label="Checked-in Guests" value={dashboard.bookingOverview.checkedInBookings} />
             <MetricRow label="Cancelled Bookings" value={dashboard.bookingOverview.cancelledBookings} />
             <MetricRow label="Available Rooms" value={dashboard.occupancy.availableRooms} />
+            <MetricRow label="Reserved Rooms" value={dashboard.occupancy.reservedRooms ?? 0} />
+            <MetricRow label="Maintenance Rooms" value={dashboard.occupancy.maintenanceRooms ?? 0} />
+            <MetricRow label="Dirty Rooms" value={dashboard.housekeepingOverview?.dirtyRooms ?? dashboard.occupancy.dirtyRooms ?? 0} />
+            <MetricRow label="Cleaning In Progress" value={dashboard.housekeepingOverview?.cleaningRooms ?? dashboard.occupancy.cleaningRooms ?? 0} />
+            <MetricRow label="Inspection Pending" value={dashboard.housekeepingOverview?.inspectionPendingRooms ?? dashboard.occupancy.inspectionPendingRooms ?? 0} />
+            <MetricRow label="Maintenance Issues" value={dashboard.maintenanceOverview?.pendingIssues ?? summary.pendingMaintenanceIssues ?? 0} />
+            <MetricRow label="Urgent Maintenance" value={dashboard.maintenanceOverview?.urgentIssues ?? summary.urgentMaintenanceIssues ?? 0} />
+            <MetricRow label="Out Of Service Rooms" value={dashboard.maintenanceOverview?.outOfServiceRooms ?? summary.outOfServiceRooms ?? 0} />
+            <MetricRow label="Room Types" value={dashboard.roomTypeInsights?.totalRoomTypes ?? 0} />
+            <MetricRow label="Available Room Types" value={dashboard.roomTypeInsights?.availableRoomTypes ?? 0} />
+            <MetricRow label="Total Staff" value={dashboard.staffOverview?.totalStaff ?? summary.totalStaff ?? 0} />
+            <MetricRow label="Staff On Duty" value={dashboard.staffOverview?.staffOnDuty ?? summary.staffOnDuty ?? 0} />
           </div>
         </SectionCard>
 
@@ -369,7 +435,11 @@ export default function DashboardPage() {
             <MetricRow label="Total Revenue" value={formatCurrency(dashboard.revenueOverview.totalRevenue)} />
             <MetricRow label="Payment Revenue" value={formatCurrency(dashboard.revenueOverview.paymentRevenue)} />
             <MetricRow label="Booking Paid Value" value={formatCurrency(dashboard.revenueOverview.bookingPaidRevenue)} />
+            <MetricRow label="Today's Revenue" value={formatCurrency(dashboard.revenueOverview.todayRevenue ?? 0)} />
+            <MetricRow label="Monthly Revenue" value={formatCurrency(dashboard.revenueOverview.monthlyRevenue ?? 0)} />
+            <MetricRow label="Collection Rate" value={`${dashboard.revenueOverview.collectionRate ?? 0}%`} />
             <MetricRow label="Pending Payments" value={formatCurrency(dashboard.revenueOverview.pendingPayments)} />
+            <MetricRow label="Outstanding Amount" value={formatCurrency(dashboard.revenueOverview.outstandingAmount ?? dashboard.revenueOverview.pendingPayments)} />
           </div>
         </SectionCard>
 
@@ -377,21 +447,60 @@ export default function DashboardPage() {
           <div className="space-y-3">
             <MetricRow label="Total Guests" value={dashboard.guestLeadActivity.totalGuests} />
             <MetricRow label="New Guests This Month" value={dashboard.guestLeadActivity.newGuestsThisMonth} />
+            <MetricRow label="Repeat Guests" value={dashboard.guestLeadActivity.repeatGuests ?? 0} />
+            <MetricRow label="VIP Guests" value={dashboard.guestLeadActivity.vipGuests ?? 0} />
             <MetricRow label="New Enquiries" value={dashboard.guestLeadActivity.newEnquiries} />
+            <MetricRow label="Pending Enquiries" value={dashboard.guestLeadActivity.pendingEnquiries ?? summary.pendingEnquiries ?? 0} />
+            <MetricRow label="Enquiry Conversion" value={`${dashboard.guestLeadActivity.enquiryConversionRate ?? 0}%`} />
             <MetricRow label="Pending Follow-ups" value={dashboard.guestLeadActivity.pendingFollowUps} />
+            <MetricRow label="Today Follow-ups" value={dashboard.guestLeadActivity.todayFollowUps ?? summary.todayFollowUps ?? 0} />
+            <MetricRow label="Overdue Follow-ups" value={dashboard.guestLeadActivity.overdueFollowUps ?? summary.overdueFollowUps ?? 0} />
+            <MetricRow label="New Leads" value={dashboard.guestLeadActivity.newLeads ?? summary.newLeads ?? 0} />
+            <MetricRow label="Hot Leads" value={dashboard.guestLeadActivity.hotLeads ?? summary.hotLeads ?? 0} />
+            <MetricRow label="Lead Conversion" value={`${dashboard.guestLeadActivity.leadConversionRate ?? 0}%`} />
+            <MetricRow label="Corporate Companies" value={corporate?.totalCompanies ?? 0} />
+            <MetricRow label="Active Corporate Clients" value={corporate?.activeClients ?? 0} />
+            <MetricRow label="Corporate Pipeline" value={formatCurrency(corporate?.pipelineValue ?? 0)} />
+            <MetricRow label="Corporate Revenue" value={formatCurrency(corporate?.totalRevenue ?? 0)} />
+            <MetricRow label="Monthly Corporate Business" value={formatCurrency(corporate?.monthlyRevenue ?? 0)} />
+            <MetricRow label="Corporate Outstanding" value={formatCurrency(corporate?.outstandingAmount ?? 0)} />
+            <MetricRow label="Corporate Follow-ups" value={corporate?.pendingFollowUps ?? 0} />
+            <MetricRow label="Event Leads" value={events?.totalEvents ?? 0} />
+            <MetricRow label="Upcoming Events" value={events?.upcomingEvents ?? 0} />
+            <MetricRow label="Event Pipeline" value={formatCurrency(events?.pipelineValue ?? 0)} />
+            <MetricRow label="Event Revenue" value={formatCurrency(events?.totalRevenue ?? 0)} />
+            <MetricRow label="Monthly Event Business" value={formatCurrency(events?.monthlyRevenue ?? 0)} />
+            <MetricRow label="Event Outstanding" value={formatCurrency(events?.outstandingAmount ?? 0)} />
+            <MetricRow label="Event Follow-ups" value={events?.pendingFollowUps ?? 0} />
+            <MetricRow label="Campaign Messages Sent" value={summary.campaignSent ?? dashboard.growth.campaignSent ?? 0} />
+            <MetricRow label="Campaign Leads" value={summary.campaignLeads ?? dashboard.growth.campaignLeads ?? 0} />
+            <MetricRow label="Campaign Bookings" value={summary.campaignBookings ?? dashboard.growth.campaignBookings ?? 0} />
+            <MetricRow label="Campaign Revenue" value={formatCurrency(summary.campaignRevenue ?? dashboard.growth.campaignRevenue ?? 0)} />
+            <MetricRow label="WhatsApp Sent" value={summary.whatsappSent ?? dashboard.growth.whatsappSent ?? 0} />
+            <MetricRow label="WhatsApp Delivery Rate" value={`${summary.whatsappDeliveryRate ?? dashboard.growth.whatsappDeliveryRate ?? 0}%`} />
+            <MetricRow label="WhatsApp Read Rate" value={`${summary.whatsappReadRate ?? dashboard.growth.whatsappReadRate ?? 0}%`} />
+            <MetricRow label="Failed WhatsApp Messages" value={summary.whatsappFailed ?? dashboard.growth.whatsappFailed ?? 0} />
           </div>
         </SectionCard>
       </div>
 
       <div className="grid gap-5 lg:grid-cols-2">
-        <SectionCard title="Reviews & Reputation" subtitle="Guest sentiment and Google review readiness">
-          <div className="flex items-center justify-between rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 p-5">
-            <div>
-              <p className="text-sm font-medium text-amber-700">Average Rating</p>
-              <p className="mt-1 text-4xl font-bold text-slate-950">{dashboard.reputation.averageRating || '—'}</p>
-              <p className="mt-1 text-sm text-slate-500">{dashboard.reputation.reviewCount} reviews collected</p>
+        <SectionCard title="Reviews & Reputation" subtitle="Guest sentiment, pending requests, and reputation score">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="flex items-center justify-between rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 p-5">
+              <div>
+                <p className="text-sm font-medium text-amber-700">Average Rating</p>
+                <p className="mt-1 text-4xl font-bold text-slate-950">{dashboard.reputation.averageRating || '—'}</p>
+                <p className="mt-1 text-sm text-slate-500">{dashboard.reputation.reviewCount} reviews collected</p>
+              </div>
+              <Star className="h-14 w-14 text-amber-500" />
             </div>
-            <Star className="h-14 w-14 text-amber-500" />
+            <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+              <MetricRow label="Reputation Score" value={`${dashboard.reputation.reputationScore ?? 0}%`} />
+              <MetricRow label="Pending Review Requests" value={dashboard.reputation.pendingReviewRequests ?? 0} />
+              <MetricRow label="Negative Reviews" value={dashboard.reputation.negativeReviews ?? 0} />
+              <MetricRow label="New This Month" value={dashboard.reputation.newReviewsThisMonth ?? 0} />
+            </div>
           </div>
         </SectionCard>
 
@@ -400,9 +509,16 @@ export default function DashboardPage() {
             {[
               { href: '/bookings', label: 'Create Booking', icon: <Plus className="h-4 w-4" /> },
               { href: '/guests', label: 'Add Guest', icon: <Users className="h-4 w-4" /> },
+              { href: '/event-leads', label: 'Event CRM', icon: <PartyPopper className="h-4 w-4" /> },
+              { href: '/corporate-leads', label: 'Corporate CRM', icon: <Building2 className="h-4 w-4" /> },
               { href: '/enquiries', label: 'Capture Lead', icon: <MessageSquare className="h-4 w-4" /> },
+              { href: '/leads', label: 'Lead Center', icon: <TrendingUp className="h-4 w-4" /> },
               { href: '/campaigns', label: 'Plan Campaign', icon: <Megaphone className="h-4 w-4" /> },
               { href: '/payments', label: 'Record Payment', icon: <WalletCards className="h-4 w-4" /> },
+              { href: '/reviews', label: 'Manage Reviews', icon: <Star className="h-4 w-4" /> },
+              { href: '/booking-calendar', label: 'Reservation Calendar', icon: <CalendarDays className="h-4 w-4" /> },
+              { href: '/analytics', label: 'View Analytics', icon: <BarChart3 className="h-4 w-4" /> },
+              { href: '/reports', label: 'Reports Center', icon: <FileBarChart2 className="h-4 w-4" /> },
               { href: '/whatsapp', label: 'WhatsApp Automation', icon: <MessageCircle className="h-4 w-4" /> },
             ].map((action) => (
               <Link

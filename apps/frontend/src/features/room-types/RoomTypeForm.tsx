@@ -111,6 +111,7 @@ export const RoomTypeForm = ({ form, errors, onChange }: RoomTypeFormProps) => {
           <FormInput label="Tags (comma separated)" value={(form.tags ?? []).join(', ')} onChange={(e) => onChange('tags', e.target.value.split(',').map((t) => t.trim()).filter(Boolean))} className="sm:col-span-2" />
           <FormInput label="Cancellation Policy" value={form.cancellationPolicy || ''} onChange={(e) => onChange('cancellationPolicy', e.target.value)} className="sm:col-span-2" />
           <FormInput label="Check-in Instructions" value={form.checkInInstructions || ''} onChange={(e) => onChange('checkInInstructions', e.target.value)} className="sm:col-span-2" />
+          <FormInput label="Internal Notes" value={form.internalNotes || ''} onChange={(e) => onChange('internalNotes', e.target.value)} className="sm:col-span-2" />
         </div>
         <div className="flex flex-wrap gap-6">
           <label className="flex items-center gap-2 text-sm text-slate-700">
@@ -120,6 +121,10 @@ export const RoomTypeForm = ({ form, errors, onChange }: RoomTypeFormProps) => {
           <label className="flex items-center gap-2 text-sm text-slate-700">
             <input type="checkbox" checked={form.isAvailableForBooking ?? true} onChange={(e) => onChange('isAvailableForBooking', e.target.checked)} className="rounded border-slate-300" />
             Available for booking
+          </label>
+          <label className="flex items-center gap-2 text-sm text-slate-700">
+            <input type="checkbox" checked={form.isPopular ?? false} onChange={(e) => onChange('isPopular', e.target.checked)} className="rounded border-slate-300" />
+            Mark as popular
           </label>
         </div>
       </section>

@@ -1,14 +1,14 @@
 'use client';
 
 import { FormInput, SelectInput, TextArea } from '@/components/FormInput';
-import { STAFF_ROLES, STAFF_STATUSES, SHIFT_TYPES, GENDERS } from './constants';
+import { STAFF_DEPARTMENTS, STAFF_ROLES, STAFF_STATUSES, SHIFT_TYPES, GENDERS } from './constants';
 import type { StaffFormData } from '@/types';
 
 interface StaffFormProps {
   form: StaffFormData;
   errors: Record<string, string>;
   isEdit?: boolean;
-  onChange: (field: keyof StaffFormData, value: string | number | undefined) => void;
+  onChange: (field: keyof StaffFormData, value: string | number | string[] | StaffFormData['documents'] | undefined) => void;
 }
 
 export function StaffForm({ form, errors, isEdit = false, onChange }: StaffFormProps) {
@@ -18,6 +18,12 @@ export function StaffForm({ form, errors, isEdit = false, onChange }: StaffFormP
         <div className="sm:col-span-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{errors.form}</div>
       )}
 
+      <FormInput
+        label="Employee ID"
+        value={form.employeeId || ''}
+        onChange={(e) => onChange('employeeId', e.target.value)}
+        placeholder="EMP-001"
+      />
       <FormInput
         label="Full Name"
         value={form.fullName}
@@ -33,6 +39,11 @@ export function StaffForm({ form, errors, isEdit = false, onChange }: StaffFormP
         error={errors.email}
         required
         disabled={isEdit}
+      />
+      <FormInput
+        label="Profile Image URL"
+        value={form.profileImage || ''}
+        onChange={(e) => onChange('profileImage', e.target.value)}
       />
       <FormInput
         label="Phone"
@@ -59,10 +70,11 @@ export function StaffForm({ form, errors, isEdit = false, onChange }: StaffFormP
         onChange={(e) => onChange('status', e.target.value)}
         options={STAFF_STATUSES}
       />
-      <FormInput
+      <SelectInput
         label="Department"
         value={form.department || ''}
         onChange={(e) => onChange('department', e.target.value)}
+        options={[{ value: '', label: 'Select department' }, ...STAFF_DEPARTMENTS]}
       />
       <FormInput
         label="Designation"
@@ -106,6 +118,18 @@ export function StaffForm({ form, errors, isEdit = false, onChange }: StaffFormP
         onChange={(e) => onChange('salary', e.target.value ? Number(e.target.value) : undefined)}
       />
       <FormInput
+        label="Experience (Years)"
+        type="number"
+        value={form.experienceYears !== undefined ? String(form.experienceYears) : ''}
+        onChange={(e) => onChange('experienceYears', e.target.value ? Number(e.target.value) : 0)}
+      />
+      <FormInput
+        label="Skills (comma separated)"
+        value={(form.skills ?? []).join(', ')}
+        onChange={(e) => onChange('skills', e.target.value.split(',').map((item) => item.trim()).filter(Boolean))}
+        className="sm:col-span-2"
+      />
+      <FormInput
         label="Emergency Contact Name"
         value={form.emergencyContactName || ''}
         onChange={(e) => onChange('emergencyContactName', e.target.value)}
@@ -116,11 +140,10 @@ export function StaffForm({ form, errors, isEdit = false, onChange }: StaffFormP
         onChange={(e) => onChange('emergencyContactPhone', e.target.value)}
       />
       <div className="sm:col-span-2">
-        <FormInput
-          label="Address"
-          value={form.address || ''}
-          onChange={(e) => onChange('address', e.target.value)}
-        />
+        <TextArea label="Address" value={form.address || ''} onChange={(e) => onChange('address', e.target.value)} />
+      </div>
+      <div className="sm:col-span-2">
+        <TextArea label="Notes" value={form.notes || ''} onChange={(e) => onChange('notes', e.target.value)} />
       </div>
       {!isEdit && (
         <div className="sm:col-span-2">

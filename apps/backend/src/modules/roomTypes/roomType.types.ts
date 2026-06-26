@@ -22,6 +22,18 @@ export interface RoomTypeStatsResult {
   lowestPrice: number;
   highestPrice: number;
   totalRoomsLinked: number;
+  totalAvailableRooms: number;
+  totalOccupiedRooms: number;
+  totalBookings: number;
+  totalRevenue: number;
+  popularRoomTypes: Array<{
+    id: string;
+    name: string;
+    bookings: number;
+    revenue: number;
+    linkedRooms: number;
+    availableRooms: number;
+  }>;
   roomTypesWithoutImages: number;
 }
 
@@ -65,6 +77,10 @@ export interface SanitizedRoomType extends Record<string, unknown> {
   isActive: boolean;
   auditLogs?: unknown[];
   linkedRoomsCount?: number;
+  availableRoomsCount?: number;
+  occupiedRoomsCount?: number;
+  bookingCount?: number;
+  revenue?: number;
 }
 
 export interface PricingPreviewInput {

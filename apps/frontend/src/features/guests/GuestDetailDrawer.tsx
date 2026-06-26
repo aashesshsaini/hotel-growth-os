@@ -1,7 +1,10 @@
 'use client';
 
+import Link from 'next/link';
+import { CalendarPlus, Clock, MessageCircle, Phone, Star } from 'lucide-react';
 import { Modal } from '@/components/Modal';
 import type { Guest, GuestHistory } from '@/types';
+import { getEntityId } from '@/types';
 import { formatCurrency, formatDate, capitalize } from '@/utils/format';
 import { GuestBadges, GuestStatusBadge } from './GuestBadges';
 import { GuestDocumentManager } from './GuestDocumentManager';
@@ -38,6 +41,11 @@ function DetailRow({ label, value }: { label: string; value?: string | number | 
     </div>
   );
 }
+
+const whatsappLink = (phone: string) => {
+  const normalized = phone.replace(/\D/g, '');
+  return normalized ? `https://wa.me/${normalized}` : '#';
+};
 
 export const GuestDetailDrawer = ({
   guest,
@@ -87,18 +95,46 @@ export const GuestDetailDrawer = ({
         <div className="space-y-4">{[1, 2, 3].map((i) => <div key={i} className="h-16 animate-pulse rounded-lg bg-slate-100" />)}</div>
       ) : guest ? (
         <div className="space-y-6">
-          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 pb-4">
-            <div>
-              <h3 className="text-xl font-semibold text-slate-900">{getGuestDisplayName(guest)}</h3>
-              <p className="text-sm text-slate-500">{guest.phone}{guest.email ? ` · ${guest.email}` : ''}</p>
+          <div className="rounded-3xl bg-gradient-to-br from-slate-950 via-indigo-700 to-purple-700 p-5 text-white">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15 text-xl font-bold ring-1 ring-white/20">
+                  {getGuestDisplayName(guest).slice(0, 1).toUpperCase()}
+                </div>
+                <h3 className="mt-4 text-2xl font-semibold">{getGuestDisplayName(guest)}</h3>
+                <p className="mt-1 text-sm text-indigo-100">{guest.phone}{guest.email ? ` · ${guest.email}` : ''}</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-white/10 p-2 ring-1 ring-white/15">
+                <GuestBadges guest={guest} />
+                <GuestStatusBadge guest={guest} />
+              </div>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <GuestBadges guest={guest} />
-              <GuestStatusBadge guest={guest} />
+
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              <a href={`tel:${guest.phone}`} className="rounded-xl bg-white/15 px-3 py-2 text-center text-sm font-semibold ring-1 ring-white/20 hover:bg-white/20">
+                <Phone className="mr-2 inline h-4 w-4" />
+                Call
+              </a>
+              <a href={whatsappLink(guest.phone)} target="_blank" rel="noreferrer" className="rounded-xl bg-white/15 px-3 py-2 text-center text-sm font-semibold ring-1 ring-white/20 hover:bg-white/20">
+                <MessageCircle className="mr-2 inline h-4 w-4" />
+                WhatsApp
+              </a>
+              <Link href={`/bookings?guestId=${getEntityId(guest)}`} className="rounded-xl bg-white/15 px-3 py-2 text-center text-sm font-semibold ring-1 ring-white/20 hover:bg-white/20">
+                <CalendarPlus className="mr-2 inline h-4 w-4" />
+                Booking
+              </Link>
+              <Link href={`/tasks?guestId=${getEntityId(guest)}`} className="rounded-xl bg-white/15 px-3 py-2 text-center text-sm font-semibold ring-1 ring-white/20 hover:bg-white/20">
+                <Clock className="mr-2 inline h-4 w-4" />
+                Follow-up
+              </Link>
+              <Link href={`/reviews?guestId=${getEntityId(guest)}`} className="rounded-xl bg-white px-3 py-2 text-center text-sm font-semibold text-indigo-700 hover:bg-indigo-50">
+                <Star className="mr-2 inline h-4 w-4" />
+                Review
+              </Link>
             </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2 lg:grid-cols-3">
             <DetailRow label="City" value={guest.city} />
             <DetailRow label="Guest Type" value={guest.guestType ? capitalize(guest.guestType) : undefined} />
             <DetailRow label="Source" value={guest.source ? capitalize(guest.source) : undefined} />
@@ -113,7 +149,7 @@ export const GuestDetailDrawer = ({
           </div>
 
           {guest.tags && guest.tags.length > 0 && (
-            <div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-4">
               <h4 className="mb-2 text-sm font-semibold text-slate-900">Tags</h4>
               <div className="flex flex-wrap gap-1">
                 {guest.tags.map((tag) => (
@@ -124,7 +160,7 @@ export const GuestDetailDrawer = ({
           )}
 
           {guest.notes && (
-            <div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-4">
               <h4 className="mb-1 text-sm font-semibold text-slate-900">Notes</h4>
               <p className="text-sm text-slate-600 whitespace-pre-wrap">{guest.notes}</p>
             </div>

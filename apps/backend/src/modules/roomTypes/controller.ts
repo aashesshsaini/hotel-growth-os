@@ -2,12 +2,13 @@ import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../../types/express.d';
 import { sendCreated, sendSuccess } from '../../utils/response';
 import { getParam } from '../../utils/params';
-import { ListRoomTypesQuery } from './validation';
+import { ListRoomTypesQuery, RoomTypeAvailabilityQuery } from './validation';
 import { ViewerContext } from './roomType.types';
 import {
   createRoomTypeService,
   deleteRoomTypeService,
   getPublicRoomTypesService,
+  getRoomTypeAvailabilityService,
   getRoomTypeByIdService,
   getRoomTypeStatsService,
   listRoomTypesService,
@@ -33,6 +34,23 @@ export const listRoomTypes = async (
   try {
     const result = await listRoomTypesService(req.query as unknown as ListRoomTypesQuery, getViewer(req));
     sendSuccess(res, result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getRoomTypeAvailability = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const availability = await getRoomTypeAvailabilityService(
+      getParam(req.params.id),
+      req.query as unknown as RoomTypeAvailabilityQuery,
+      getViewer(req)
+    );
+    sendSuccess(res, availability);
   } catch (error) {
     next(error);
   }

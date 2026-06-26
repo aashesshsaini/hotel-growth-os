@@ -11,7 +11,26 @@ export const STAFF_ROLES = [
 export const STAFF_STATUSES = [
   { value: 'active', label: 'Active' },
   { value: 'inactive', label: 'Inactive' },
+  { value: 'on_duty', label: 'On Duty' },
+  { value: 'off_duty', label: 'Off Duty' },
+  { value: 'leave', label: 'Leave' },
   { value: 'suspended', label: 'Suspended' },
+  { value: 'resigned', label: 'Resigned' },
+];
+
+export const STAFF_DEPARTMENTS = [
+  { value: 'Reception', label: 'Reception' },
+  { value: 'Front Office', label: 'Front Office' },
+  { value: 'Housekeeping', label: 'Housekeeping' },
+  { value: 'Maintenance', label: 'Maintenance' },
+  { value: 'Finance', label: 'Finance' },
+  { value: 'Marketing', label: 'Marketing' },
+  { value: 'Reservations', label: 'Reservations' },
+  { value: 'Management', label: 'Management' },
+  { value: 'Security', label: 'Security' },
+  { value: 'Restaurant', label: 'Restaurant' },
+  { value: 'Spa', label: 'Spa' },
+  { value: 'Laundry', label: 'Laundry' },
 ];
 
 export const SHIFT_TYPES = [
@@ -57,6 +76,7 @@ export const ROLE_COLORS: Record<string, string> = {
 export const MANAGEMENT_ROLES = ['super_admin', 'hotel_owner', 'hotel_manager'];
 
 export const emptyStaffForm = {
+  employeeId: '',
   fullName: '',
   email: '',
   phone: '',
@@ -64,6 +84,7 @@ export const emptyStaffForm = {
   role: 'reception_staff',
   department: '',
   designation: '',
+  profileImage: '',
   gender: '',
   joiningDate: new Date().toISOString().split('T')[0],
   shiftType: 'morning',
@@ -73,6 +94,10 @@ export const emptyStaffForm = {
   emergencyContactName: '',
   emergencyContactPhone: '',
   salary: undefined as number | undefined,
+  experienceYears: 0,
+  skills: [] as string[],
+  documents: [],
+  notes: '',
   status: 'active',
   password: '',
 };

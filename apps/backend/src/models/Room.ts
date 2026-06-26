@@ -9,6 +9,29 @@ import {
 } from '@hotel-growth-os/shared';
 import { softDeletePlugin, auditFields } from '../utils/schemaHelpers';
 
+export interface IRoomImage {
+  _id?: mongoose.Types.ObjectId;
+  url: string;
+  publicId?: string;
+  altText?: string;
+  sortOrder?: number;
+  uploadedAt?: Date;
+}
+
+export interface IRoomTimelineItem {
+  action: string;
+  message?: string;
+  createdBy?: mongoose.Types.ObjectId;
+  createdAt: Date;
+  metadata?: Record<string, unknown>;
+}
+
+export interface IRoomInspectionItem {
+  item: string;
+  isChecked: boolean;
+  notes?: string;
+}
+
 export interface IRoom extends Document {
   hotelId: mongoose.Types.ObjectId;
   roomTypeId: mongoose.Types.ObjectId;
@@ -18,11 +41,19 @@ export interface IRoom extends Document {
   wing?: string;
   roomName?: string;
   description?: string;
+  capacity?: number;
+  maxAdults?: number;
+  maxChildren?: number;
+  bedType?: string;
+  viewType?: string;
+  smokingPolicy?: 'smoking' | 'non_smoking';
   status: RoomStatus;
   housekeepingStatus: HousekeepingStatus;
   maintenanceStatus: MaintenanceStatus;
   currentBookingId?: mongoose.Types.ObjectId;
   currentGuestId?: mongoose.Types.ObjectId;
+  assignedHousekeeperId?: mongoose.Types.ObjectId;
+  assignedMaintenanceStaffId?: mongoose.Types.ObjectId;
   maxGuestsOverride?: number;
   priceOverride?: number;
   isPriceOverridden: boolean;
@@ -33,9 +64,19 @@ export interface IRoom extends Document {
   blockedFrom?: Date;
   blockedTo?: Date;
   amenitiesOverride?: string[];
+  images: IRoomImage[];
+  cleaningNotes?: string;
+  maintenanceNotes?: string;
+  housekeepingSchedule?: Date;
+  maintenanceSchedule?: Date;
+  lastCleanedAt?: Date;
+  lastInspectedAt?: Date;
+  inspectionChecklist: IRoomInspectionItem[];
   notes?: string;
+  internalNotes?: string;
   qrCode?: string;
   tags?: string[];
+  timeline: IRoomTimelineItem[];
   metadata?: Record<string, unknown>;
   isDeleted: boolean;
   deletedAt?: Date;
@@ -56,6 +97,12 @@ const roomSchema = new Schema<IRoom>(
     wing: { type: String, trim: true },
     roomName: { type: String, trim: true },
     description: { type: String, maxlength: 1000 },
+    capacity: { type: Number, min: 1 },
+    maxAdults: { type: Number, min: 1 },
+    maxChildren: { type: Number, min: 0 },
+    bedType: { type: String, trim: true },
+    viewType: { type: String, trim: true },
+    smokingPolicy: { type: String, enum: ['smoking', 'non_smoking'], default: 'non_smoking' },
     status: {
       type: String,
       enum: ROOM_STATUSES,
@@ -76,6 +123,8 @@ const roomSchema = new Schema<IRoom>(
     },
     currentBookingId: { type: Schema.Types.ObjectId, ref: 'Booking', index: true },
     currentGuestId: { type: Schema.Types.ObjectId, ref: 'Guest' },
+    assignedHousekeeperId: { type: Schema.Types.ObjectId, ref: 'User', index: true },
+    assignedMaintenanceStaffId: { type: Schema.Types.ObjectId, ref: 'User', index: true },
     maxGuestsOverride: { type: Number, min: 1 },
     priceOverride: { type: Number, min: 0 },
     isPriceOverridden: { type: Boolean, default: false },
@@ -86,9 +135,41 @@ const roomSchema = new Schema<IRoom>(
     blockedFrom: { type: Date },
     blockedTo: { type: Date },
     amenitiesOverride: [{ type: String }],
+    images: [
+      {
+        url: { type: String, required: true },
+        publicId: { type: String },
+        altText: { type: String },
+        sortOrder: { type: Number, default: 0 },
+        uploadedAt: { type: Date, default: Date.now },
+      },
+    ],
+    cleaningNotes: { type: String, maxlength: 1000 },
+    maintenanceNotes: { type: String, maxlength: 1000 },
+    housekeepingSchedule: { type: Date },
+    maintenanceSchedule: { type: Date },
+    lastCleanedAt: { type: Date },
+    lastInspectedAt: { type: Date },
+    inspectionChecklist: [
+      {
+        item: { type: String, required: true },
+        isChecked: { type: Boolean, default: false },
+        notes: { type: String },
+      },
+    ],
     notes: { type: String, maxlength: 1000 },
+    internalNotes: { type: String, maxlength: 2000 },
     qrCode: { type: String },
     tags: [{ type: String }],
+    timeline: [
+      {
+        action: { type: String, required: true },
+        message: { type: String },
+        createdBy: { type: Schema.Types.ObjectId, ref: 'User' },
+        createdAt: { type: Date, default: Date.now },
+        metadata: { type: Schema.Types.Mixed },
+      },
+    ],
     metadata: { type: Schema.Types.Mixed },
     ...auditFields,
   },

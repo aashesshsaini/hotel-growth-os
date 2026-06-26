@@ -17,7 +17,6 @@ import { ConfirmDialog } from '@/components/Modal';
 import { DataTable } from '@/components/DataTable';
 import { FormInput, SelectInput } from '@/components/FormInput';
 import { Modal } from '@/components/Modal';
-import { PageHeader } from '@/components/PageHeader';
 import { useToast } from '@/components/Toast';
 import { RoomTypeCard } from '@/features/room-types/RoomTypeCard';
 import { RoomTypeDetailDrawer } from '@/features/room-types/RoomTypeDetailDrawer';
@@ -191,8 +190,10 @@ const RoomTypesPage = () => {
       inventoryType: roomType.inventoryType,
       cancellationPolicy: roomType.cancellationPolicy,
       checkInInstructions: roomType.checkInInstructions,
+      internalNotes: roomType.internalNotes,
       isVisibleOnWebsite: roomType.isVisibleOnWebsite,
       isAvailableForBooking: roomType.isAvailableForBooking,
+      isPopular: roomType.isPopular,
       status: roomType.status || 'active',
       sortOrder: roomType.sortOrder,
       tags: roomType.tags ?? [],
@@ -384,7 +385,10 @@ const RoomTypesPage = () => {
     { key: 'weekendPrice', header: 'Weekend', render: (row: RoomType) => row.weekendPrice ? formatCurrency(row.weekendPrice) : '—' },
     { key: 'maxGuests', header: 'Guests' },
     { key: 'bedType', header: 'Bed', render: (row: RoomType) => row.bedType ? capitalize(row.bedType) : '—' },
-    { key: 'totalRooms', header: 'Rooms', render: (row: RoomType) => row.totalRooms ?? 0 },
+    { key: 'totalRooms', header: 'Rooms', render: (row: RoomType) => row.linkedRoomsCount ?? row.totalRooms ?? 0 },
+    { key: 'availableRooms', header: 'Available', render: (row: RoomType) => row.availableRoomsCount ?? '—' },
+    { key: 'bookings', header: 'Bookings', render: (row: RoomType) => row.bookingCount ?? '—' },
+    { key: 'revenue', header: 'Revenue', render: (row: RoomType) => row.revenue !== undefined ? formatCurrency(row.revenue) : '—' },
     { key: 'isVisibleOnWebsite', header: 'Website', render: (row: RoomType) => row.isVisibleOnWebsite ? 'Yes' : 'No' },
     { key: 'isAvailableForBooking', header: 'Booking', render: (row: RoomType) => row.isAvailableForBooking ? 'Yes' : 'No' },
     { key: 'status', header: 'Status', render: (row: RoomType) => <RoomTypeStatusBadge status={row.status || (row.isActive ? 'active' : 'inactive')} /> },
@@ -441,28 +445,36 @@ const RoomTypesPage = () => {
   ];
 
   return (
-    <div>
-      <PageHeader
-        title="Room Types"
-        subtitle="Manage room categories, pricing, and availability"
-        actions={
+    <div className="space-y-6">
+      <section className="overflow-hidden rounded-3xl border border-indigo-100 bg-white shadow-sm">
+        <div className="relative bg-gradient-to-br from-slate-950 via-indigo-700 to-purple-700 px-5 py-6 text-white sm:px-6 lg:px-8">
+          <div className="absolute right-0 top-0 h-44 w-44 rounded-full bg-white/10 blur-3xl" />
+          <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.25em] text-indigo-100">Inventory & Pricing</p>
+              <h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">Room Types</h1>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-indigo-100">
+                Manage sellable room categories, pricing, capacity, amenities, images, availability, and website visibility.
+              </p>
+            </div>
           <div className="flex items-center gap-2">
-            <div className="flex rounded-lg border border-slate-200 p-0.5">
-              <button type="button" className={`rounded-md p-2 ${viewMode === 'table' ? 'bg-slate-100' : ''}`} onClick={() => setViewMode('table')} aria-label="Table view">
+            <div className="flex rounded-lg border border-white/20 p-0.5">
+              <button type="button" className={`rounded-md p-2 text-white ${viewMode === 'table' ? 'bg-white/20' : ''}`} onClick={() => setViewMode('table')} aria-label="Table view">
                 <LayoutList className="h-4 w-4" />
               </button>
-              <button type="button" className={`rounded-md p-2 ${viewMode === 'grid' ? 'bg-slate-100' : ''}`} onClick={() => setViewMode('grid')} aria-label="Grid view">
+              <button type="button" className={`rounded-md p-2 text-white ${viewMode === 'grid' ? 'bg-white/20' : ''}`} onClick={() => setViewMode('grid')} aria-label="Grid view">
                 <Grid3X3 className="h-4 w-4" />
               </button>
             </div>
             {canManage && (
-              <button type="button" className="btn-primary" onClick={openCreate}>
-                <Plus className="mr-2 h-4 w-4" /> Add Room Type
+              <button type="button" className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-50" onClick={openCreate}>
+                <Plus className="mr-2 inline h-4 w-4" /> Add Room Type
               </button>
             )}
           </div>
-        }
-      />
+          </div>
+        </div>
+      </section>
 
       <RoomTypeStatsCards stats={stats} isLoading={statsLoading} />
 

@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  Clock,
   Eye,
   MoreHorizontal,
   Pencil,
@@ -13,7 +14,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ConfirmDialog } from '@/components/Modal';
 import { DataTable } from '@/components/DataTable';
 import { Modal } from '@/components/Modal';
-import { PageHeader } from '@/components/PageHeader';
 import { SelectInput } from '@/components/FormInput';
 import { StatusBadge } from '@/components/StatusBadge';
 import { useToast } from '@/components/Toast';
@@ -113,6 +113,9 @@ export default function StaffPage() {
   const [statusStaff, setStatusStaff] = useState<Staff | null>(null);
   const [newStatus, setNewStatus] = useState('active');
   const [showStatusModal, setShowStatusModal] = useState(false);
+  const [attendanceStaff, setAttendanceStaff] = useState<Staff | null>(null);
+  const [attendanceStatus, setAttendanceStatus] = useState('present');
+  const [attendanceNotes, setAttendanceNotes] = useState('');
 
   const [deleteTarget, setDeleteTarget] = useState<Staff | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -137,6 +140,7 @@ export default function StaffPage() {
 
   const openEdit = (staff: Staff) => {
     setForm({
+      employeeId: staff.employeeId || '',
       fullName: staff.fullName || staff.name || '',
       email: staff.email,
       phone: staff.phone,
@@ -144,14 +148,19 @@ export default function StaffPage() {
       role: staff.role,
       department: staff.department || '',
       designation: staff.designation || '',
+      profileImage: staff.profileImage || '',
       gender: staff.gender || '',
       joiningDate: toInputDate(staff.joiningDate),
+      experienceYears: staff.experienceYears ?? 0,
+      skills: staff.skills ?? [],
       shiftType: staff.shiftType || 'morning',
       shiftStartTime: staff.shiftStartTime || '',
       shiftEndTime: staff.shiftEndTime || '',
       address: staff.address || '',
       emergencyContactName: staff.emergencyContactName || '',
       emergencyContactPhone: staff.emergencyContactPhone || '',
+      documents: staff.documents ?? [],
+      notes: staff.notes || '',
       salary: staff.salary,
       status: staff.status || 'active',
     });
@@ -226,6 +235,26 @@ export default function StaffPage() {
     }
   };
 
+  const handleAttendanceSave = async () => {
+    if (!attendanceStaff) return;
+    setIsSaving(true);
+    try {
+      await staffService.recordAttendance(getEntityId(attendanceStaff), {
+        status: attendanceStatus,
+        notes: attendanceNotes || undefined,
+      });
+      showToast('Attendance recorded');
+      setAttendanceStaff(null);
+      setAttendanceNotes('');
+      refresh();
+      setStats(await staffService.getStats());
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Failed to record attendance', 'error');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handlePermissionsSave = async (permissions: string[]) => {
     if (!permissionsStaff) return;
     setIsSaving(true);
@@ -259,23 +288,31 @@ export default function StaffPage() {
     }
   };
 
-  const handleFormChange = (field: keyof StaffFormData, value: string | number | undefined) => {
+  const handleFormChange = (field: keyof StaffFormData, value: string | number | string[] | StaffFormData['documents'] | undefined) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
   return (
-    <div>
-      <PageHeader
-        title="Staff Management"
-        subtitle="Manage hotel team members, roles, shifts and permissions"
-        actions={
-          canManage ? (
-            <button type="button" className="btn-primary" onClick={openCreate}>
-              <Plus className="mr-2 h-4 w-4" /> Add Staff
-            </button>
-          ) : undefined
-        }
-      />
+    <div className="space-y-6">
+      <section className="overflow-hidden rounded-3xl border border-indigo-100 bg-white shadow-sm">
+        <div className="relative bg-gradient-to-br from-slate-950 via-indigo-700 to-purple-700 px-5 py-6 text-white sm:px-6 lg:px-8">
+          <div className="absolute right-0 top-0 h-44 w-44 rounded-full bg-white/10 blur-3xl" />
+          <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.25em] text-indigo-100">Workforce Command Center</p>
+              <h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">Staff Management</h1>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-indigo-100">
+                Manage employees, shifts, attendance, permissions, documents, and workload across hotel operations.
+              </p>
+            </div>
+            {canManage ? (
+              <button type="button" className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-50" onClick={openCreate}>
+                <Plus className="mr-2 inline h-4 w-4" /> Add Staff
+              </button>
+            ) : null}
+          </div>
+        </div>
+      </section>
 
       <StaffStatsCards stats={stats} isLoading={statsLoading} />
 
@@ -302,9 +339,19 @@ export default function StaffPage() {
             key: 'fullName',
             header: 'Name',
             render: (row) => (
-              <div>
-                <p className="font-medium text-slate-900">{row.fullName || row.name}</p>
-                {row.designation && <p className="text-xs text-slate-500">{row.designation}</p>}
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl bg-indigo-100 text-xs font-bold text-indigo-700">
+                  {row.profileImage ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={row.profileImage} alt={row.fullName || row.name || 'Staff'} className="h-full w-full object-cover" />
+                  ) : (
+                    (row.fullName || row.name || 'ST').slice(0, 2).toUpperCase()
+                  )}
+                </div>
+                <div>
+                  <p className="font-medium text-slate-900">{row.fullName || row.name}</p>
+                  <p className="text-xs text-slate-500">{row.employeeId || row.designation || '—'}</p>
+                </div>
               </div>
             ),
           },
@@ -314,6 +361,7 @@ export default function StaffPage() {
             render: (row) => <RoleBadge role={row.role} />,
           },
           { key: 'department', header: 'Department', render: (row) => row.department || '—' },
+          { key: 'designation', header: 'Designation', render: (row) => row.designation || '—' },
           { key: 'phone', header: 'Phone' },
           { key: 'email', header: 'Email' },
           {
@@ -387,6 +435,17 @@ export default function StaffPage() {
                           }}
                         >
                           <UserCog className="h-4 w-4" /> Change Status
+                        </button>
+                        <button
+                          type="button"
+                          className="flex w-full items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                          onClick={() => {
+                            setActionMenuId(null);
+                            setAttendanceStaff(row);
+                            setAttendanceStatus('present');
+                          }}
+                        >
+                          <Clock className="h-4 w-4" /> Mark Attendance
                         </button>
                         <button
                           type="button"
@@ -520,6 +579,46 @@ export default function StaffPage() {
           onChange={(e) => setNewStatus(e.target.value)}
           options={STAFF_STATUSES}
         />
+      </Modal>
+
+      <Modal
+        isOpen={!!attendanceStaff}
+        onClose={() => setAttendanceStaff(null)}
+        title="Mark Attendance"
+        size="sm"
+        footer={
+          <div className="flex justify-end gap-3">
+            <button type="button" className="btn-secondary" onClick={() => setAttendanceStaff(null)}>
+              Cancel
+            </button>
+            <button type="button" className="btn-primary" onClick={() => void handleAttendanceSave()} disabled={isSaving}>
+              {isSaving ? 'Saving...' : 'Save Attendance'}
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <SelectInput
+            label="Attendance Status"
+            value={attendanceStatus}
+            onChange={(e) => setAttendanceStatus(e.target.value)}
+            options={[
+              { value: 'present', label: 'Present' },
+              { value: 'late', label: 'Late' },
+              { value: 'half_day', label: 'Half Day' },
+              { value: 'leave', label: 'Leave' },
+              { value: 'on_duty', label: 'On Duty' },
+              { value: 'off_duty', label: 'Off Duty' },
+              { value: 'absent', label: 'Absent' },
+            ]}
+          />
+          <textarea
+            value={attendanceNotes}
+            onChange={(e) => setAttendanceNotes(e.target.value)}
+            className="input-field min-h-24"
+            placeholder="Optional attendance notes"
+          />
+        </div>
       </Modal>
 
       <ConfirmDialog

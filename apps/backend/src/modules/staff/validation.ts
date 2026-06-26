@@ -7,6 +7,7 @@ import {
   STAFF_PERMISSIONS,
 } from '@hotel-growth-os/shared';
 import { paginationSchema, objectIdSchema } from '../../validations/common';
+import { STAFF_ATTENDANCE_STATUSES } from '../../models/StaffAttendance';
 
 const phoneSchema = z
   .string()
@@ -20,6 +21,8 @@ export const listStaffQuerySchema = paginationSchema.extend({
   department: z.string().optional(),
   status: z.enum(STAFF_STATUSES).optional(),
   shiftType: z.enum(SHIFT_TYPES).optional(),
+  designation: z.string().optional(),
+  skill: z.string().optional(),
   joiningDateFrom: z.coerce.date().optional(),
   joiningDateTo: z.coerce.date().optional(),
   isActive: z.coerce.boolean().optional(),
@@ -30,6 +33,7 @@ export const staffIdParamSchema = z.object({
 });
 
 const staffFieldsSchema = z.object({
+  employeeId: z.string().min(1).max(30).optional(),
   fullName: z.string().min(2, 'Full name is required').max(100),
   email: z.string().email('Invalid email address'),
   phone: phoneSchema,
@@ -42,12 +46,21 @@ const staffFieldsSchema = z.object({
   dateOfBirth: z.coerce.date().optional(),
   joiningDate: z.coerce.date().optional(),
   salary: z.number().min(0).optional(),
+  experienceYears: z.number().min(0).optional(),
+  skills: z.array(z.string().min(1).max(80)).optional(),
   shiftType: z.enum(SHIFT_TYPES).optional(),
   shiftStartTime: z.string().max(10).optional(),
   shiftEndTime: z.string().max(10).optional(),
   address: z.string().max(500).optional(),
   emergencyContactName: z.string().max(100).optional(),
   emergencyContactPhone: phoneSchema.optional().or(z.literal('')),
+  documents: z.array(z.object({
+    documentType: z.string().min(1).max(80),
+    name: z.string().max(120).optional(),
+    url: z.string().url(),
+    publicId: z.string().optional(),
+  })).optional(),
+  notes: z.string().max(2000).optional(),
   status: z.enum(STAFF_STATUSES).optional(),
   hotelId: objectIdSchema.optional(),
 });
@@ -77,9 +90,23 @@ export const assignStaffSchema = z.object({
   hotelId: objectIdSchema,
 });
 
+export const recordAttendanceSchema = z.object({
+  date: z.coerce.date().optional(),
+  status: z.enum(STAFF_ATTENDANCE_STATUSES),
+  checkInAt: z.coerce.date().optional(),
+  checkOutAt: z.coerce.date().optional(),
+  notes: z.string().max(1000).optional(),
+});
+
+export const addStaffNoteSchema = z.object({
+  note: z.string().min(1).max(2000),
+});
+
 export type ListStaffQuery = z.infer<typeof listStaffQuerySchema>;
 export type CreateStaffInput = z.infer<typeof createStaffSchema>;
 export type UpdateStaffInput = z.infer<typeof updateStaffSchema>;
 export type UpdateStaffStatusInput = z.infer<typeof updateStaffStatusSchema>;
 export type UpdateStaffPermissionsInput = z.infer<typeof updateStaffPermissionsSchema>;
 export type AssignStaffInput = z.infer<typeof assignStaffSchema>;
+export type RecordAttendanceInput = z.infer<typeof recordAttendanceSchema>;
+export type AddStaffNoteInput = z.infer<typeof addStaffNoteSchema>;

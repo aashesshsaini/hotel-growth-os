@@ -29,6 +29,8 @@ export const findRoomByIdRepository = async (id: string, populate = true): Promi
     query.populate('roomTypeId', 'name basePrice maxGuests amenities');
     query.populate('currentGuestId', 'name phone');
     query.populate('currentBookingId', 'bookingNumber status checkInDate checkOutDate');
+    query.populate('assignedHousekeeperId', 'name email role');
+    query.populate('assignedMaintenanceStaffId', 'name email role');
   }
   return query.exec();
 };
@@ -42,6 +44,8 @@ export const findRoomsRepository = async (
     { path: 'roomTypeId', select: 'name basePrice maxGuests' },
     { path: 'currentGuestId', select: 'name phone' },
     { path: 'currentBookingId', select: 'bookingNumber status' },
+    { path: 'assignedHousekeeperId', select: 'name email role' },
+    { path: 'assignedMaintenanceStaffId', select: 'name email role' },
   ]);
   return result;
 };
@@ -68,7 +72,7 @@ export const getUnavailableRoomIdsRepository = async (
 ): Promise<Types.ObjectId[]> => {
   const overlappingFilter: FilterQuery<typeof Booking.prototype> = {
     hotelId,
-    status: { $nin: ['cancelled', 'checked_out'] },
+    status: { $nin: ['cancelled', 'checked_out', 'completed', 'no_show'] },
     checkInDate: { $lt: checkOutDate },
     checkOutDate: { $gt: checkInDate },
   };
@@ -80,7 +84,7 @@ export const getUnavailableRoomIdsRepository = async (
   const bookingIds = overlappingBookings.map((b) => b._id);
   if (!bookingIds.length) return [];
 
-  return BookingRoom.find({ bookingId: { $in: bookingIds }, hotelId }).distinct('roomId');
+  return BookingRoom.find({ bookingId: { $in: bookingIds }, hotelId, isDeleted: { $ne: true } }).distinct('roomId');
 };
 
 export const findAvailableRoomsRepository = async (
@@ -105,6 +109,8 @@ export const findAvailableRoomsRepository = async (
 
   const rooms = await Room.find(filter)
     .populate('roomTypeId', 'name basePrice maxGuests amenities')
+    .populate('assignedHousekeeperId', 'name email role')
+    .populate('assignedMaintenanceStaffId', 'name email role')
     .sort({ roomNumber: 1 })
     .exec();
 
@@ -121,13 +127,14 @@ export const countActiveBookingsForRoomRepository = async (roomId: string): Prom
   const bookingRooms = await BookingRoom.find({
     roomId,
     hotelId: { $exists: true },
+    isDeleted: { $ne: true },
   }).distinct('bookingId');
 
   if (!bookingRooms.length) return 0;
 
   return Booking.countDocuments({
     _id: { $in: bookingRooms },
-    status: { $nin: ['cancelled', 'checked_out'] },
+    status: { $nin: ['cancelled', 'checked_out', 'completed', 'no_show'] },
   });
 };
 

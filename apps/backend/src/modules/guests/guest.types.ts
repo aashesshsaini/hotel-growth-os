@@ -11,11 +11,23 @@ export interface GuestStatsResult {
   newGuestsThisMonth: number;
   repeatGuests: number;
   vipGuests: number;
+  inactiveGuests: number;
   blacklistedGuests: number;
   birthdayThisMonth: number;
   anniversaryThisMonth: number;
   topCities: Record<string, number>;
   topSpendingGuests: Array<{ id: string; fullName: string; totalSpend: number }>;
+  recentGuests: Array<{
+    id: string;
+    fullName: string;
+    phone: string;
+    city?: string;
+    guestType?: string;
+    isVip?: boolean;
+    isRepeatGuest?: boolean;
+    totalSpend?: number;
+    createdAt?: Date;
+  }>;
   guestsWithNoBooking: number;
   campaignEligible: number;
 }
@@ -34,6 +46,12 @@ export interface GuestHistoryResult {
   reviews: unknown[];
   campaigns: unknown[];
   whatsappMessages: unknown[];
+  whatsappSummary?: {
+    totalMessages: number;
+    incoming: number;
+    outgoing: number;
+    lastMessageAt?: Date;
+  };
   summary: {
     totalSpend: number;
     totalBookings: number;

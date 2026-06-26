@@ -25,7 +25,7 @@ const userSchema = new Schema<IUser>(
     phone: { type: String, trim: true },
     role: {
       type: String,
-      enum: ['super_admin', 'hotel_owner', 'hotel_manager', 'reception_staff', 'sales_staff', 'accountant'],
+      enum: ['super_admin', 'hotel_owner', 'hotel_manager', 'reception_staff', 'sales_staff', 'accountant', 'housekeeping', 'maintenance', 'security'],
       required: true,
     },
     hotelId: { type: Schema.Types.ObjectId, ref: 'Hotel', index: true },

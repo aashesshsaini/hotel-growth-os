@@ -51,6 +51,11 @@ export const roomTypeImageIdParamSchema = z.object({
   imageId: objectIdSchema,
 });
 
+export const roomTypeAvailabilityQuerySchema = z.object({
+  checkInDate: z.coerce.date().optional(),
+  checkOutDate: z.coerce.date().optional(),
+});
+
 export const publicHotelSlugParamSchema = z.object({
   hotelSlug: z.string().min(1),
 });
@@ -87,11 +92,13 @@ const roomTypeBaseFields = {
   coverImage: z.string().url().optional(),
   cancellationPolicy: z.string().max(2000).optional(),
   checkInInstructions: z.string().max(1000).optional(),
+  internalNotes: z.string().max(2000).optional(),
   mealPlan: z.enum(MEAL_PLANS).optional(),
   inventoryType: z.enum(INVENTORY_TYPES).optional(),
   status: z.enum(ROOM_TYPE_STATUSES).optional(),
   isAvailableForBooking: z.boolean().optional(),
   isVisibleOnWebsite: z.boolean().optional(),
+  isPopular: z.boolean().optional(),
   sortOrder: z.number().int().optional(),
   tags: z.array(z.string()).optional(),
   metadata: z.record(z.unknown()).optional(),
@@ -141,3 +148,4 @@ export type UpdateRoomTypeStatusInput = z.infer<typeof updateRoomTypeStatusSchem
 export type UpdateRoomTypePricingInput = z.infer<typeof updateRoomTypePricingSchema>;
 export type UpdateRoomTypeAmenitiesInput = z.infer<typeof updateRoomTypeAmenitiesSchema>;
 export type UploadRoomTypeImagesInput = z.infer<typeof uploadRoomTypeImagesSchema>;
+export type RoomTypeAvailabilityQuery = z.infer<typeof roomTypeAvailabilityQuerySchema>;

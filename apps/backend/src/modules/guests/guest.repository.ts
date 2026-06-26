@@ -77,17 +77,21 @@ export const getGuestStatsRepository = async (hotelId: string): Promise<GuestSta
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const ninetyDaysAgo = new Date(now);
   ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+  const inactiveCutoff = new Date(now);
+  inactiveCutoff.setDate(inactiveCutoff.getDate() - 180);
 
   const [
     totalGuests,
     newGuestsThisMonth,
     repeatGuests,
     vipGuests,
+    inactiveGuests,
     blacklistedGuests,
     birthdayThisMonth,
     anniversaryThisMonth,
     cityAgg,
     topSpenders,
+    recentGuests,
     guestsWithNoBooking,
     campaignEligible,
   ] = await Promise.all([
@@ -95,6 +99,14 @@ export const getGuestStatsRepository = async (hotelId: string): Promise<GuestSta
     Guest.countDocuments({ ...baseFilter, createdAt: { $gte: startOfMonth } }),
     Guest.countDocuments({ ...baseFilter, isRepeatGuest: true }),
     Guest.countDocuments({ ...baseFilter, isVip: true }),
+    Guest.countDocuments({
+      ...baseFilter,
+      $or: [
+        { lastBookingDate: { $lt: inactiveCutoff } },
+        { lastBookingDate: { $exists: false } },
+        { lastBookingDate: null },
+      ],
+    }),
     Guest.countDocuments({ ...baseFilter, isBlacklisted: true }),
     Guest.countDocuments({
       ...baseFilter,
@@ -116,6 +128,10 @@ export const getGuestStatsRepository = async (hotelId: string): Promise<GuestSta
       .sort({ totalSpend: -1 })
       .limit(5)
       .select('fullName name totalSpend'),
+    Guest.find(baseFilter)
+      .sort({ createdAt: -1 })
+      .limit(6)
+      .select('fullName name phone city guestType isVip isRepeatGuest totalSpend createdAt'),
     Guest.countDocuments({ ...baseFilter, totalBookings: 0 }),
     Guest.countDocuments({
       ...baseFilter,
@@ -140,6 +156,7 @@ export const getGuestStatsRepository = async (hotelId: string): Promise<GuestSta
     newGuestsThisMonth,
     repeatGuests,
     vipGuests,
+    inactiveGuests,
     blacklistedGuests,
     birthdayThisMonth,
     anniversaryThisMonth,
@@ -148,6 +165,17 @@ export const getGuestStatsRepository = async (hotelId: string): Promise<GuestSta
       id: g._id.toString(),
       fullName: g.fullName || g.name,
       totalSpend: g.totalSpend,
+    })),
+    recentGuests: recentGuests.map((g) => ({
+      id: g._id.toString(),
+      fullName: g.fullName || g.name,
+      phone: g.phone,
+      city: g.city,
+      guestType: g.guestType,
+      isVip: g.isVip,
+      isRepeatGuest: g.isRepeatGuest,
+      totalSpend: g.totalSpend,
+      createdAt: g.createdAt,
     })),
     guestsWithNoBooking,
     campaignEligible,
@@ -168,6 +196,8 @@ export const createAuditLogRepository = async (data: Record<string, unknown>): P
 export const findGuestBookingsRepository = async (guestId: string, hotelId: string) => {
   return Booking.find({ guestId, hotelId, isDeleted: { $ne: true } })
     .sort({ checkInDate: -1 })
+    .populate('roomId', 'roomNumber floor status')
+    .populate('roomTypeId', 'name code basePrice')
     .populate('assignedTo', 'name email');
 };
 
@@ -176,19 +206,30 @@ export const findGuestEnquiriesByPhoneRepository = async (hotelId: string, phone
 };
 
 export const findGuestPaymentsRepository = async (guestId: string, hotelId: string) => {
-  return Payment.find({ guestId, hotelId, isDeleted: { $ne: true } }).sort({ createdAt: -1 });
+  return Payment.find({ guestId, hotelId, isDeleted: { $ne: true } })
+    .sort({ createdAt: -1 })
+    .populate('bookingId', 'bookingNumber checkInDate checkOutDate status totalAmount paidAmount paymentStatus');
 };
 
 export const findGuestReviewsRepository = async (guestId: string, hotelId: string) => {
-  return Review.find({ guestId, hotelId, isDeleted: { $ne: true } }).sort({ createdAt: -1 });
+  return Review.find({ guestId, hotelId, isDeleted: { $ne: true } })
+    .sort({ createdAt: -1 })
+    .populate('bookingId', 'bookingNumber checkInDate checkOutDate status');
 };
 
 export const findGuestCampaignLogsRepository = async (guestId: string, hotelId: string) => {
-  return CampaignLog.find({ guestId, hotelId }).sort({ createdAt: -1 });
+  return CampaignLog.find({ guestId, hotelId })
+    .sort({ createdAt: -1 })
+    .populate('campaignId', 'name type status campaignNumber channel launchedAt');
 };
 
 export const findGuestWhatsAppMessagesRepository = async (guestId: string, hotelId: string) => {
-  return WhatsAppMessage.find({ guestId, hotelId }).sort({ createdAt: -1 }).limit(100);
+  return WhatsAppMessage.find({ guestId, hotelId, isDeleted: { $ne: true } })
+    .sort({ createdAt: -1 })
+    .limit(100)
+    .populate('assignedTo', 'name email')
+    .populate('bookingId', 'bookingNumber status')
+    .populate('campaignId', 'name campaignNumber');
 };
 
 export const repointGuestReferencesRepository = async (
