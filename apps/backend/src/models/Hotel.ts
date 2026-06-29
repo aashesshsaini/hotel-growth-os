@@ -33,6 +33,22 @@ export interface IHotel extends Document {
     logo?: string;
     website?: string;
   };
+  subscription?: {
+    plan: 'starter' | 'professional' | 'enterprise' | 'standard' | 'growth';
+    status: 'trial' | 'active' | 'expired' | 'inactive' | 'suspended';
+    billingType: 'trial' | 'paid';
+    trialEndsAt?: Date;
+    renewalDate?: Date;
+  };
+  platformMetadata?: {
+    healthScore?: number;
+    brandName?: string;
+    chainId?: mongoose.Types.ObjectId;
+    groupId?: mongoose.Types.ObjectId;
+    franchiseId?: mongoose.Types.ObjectId;
+    whiteLabelDomain?: string;
+    marketplaceEnabled?: boolean;
+  };
   ownerId: mongoose.Types.ObjectId;
   isActive: boolean;
   isDeleted: boolean;
@@ -70,6 +86,22 @@ const hotelSchema = new Schema<IHotel>(
       logo: String,
       website: String,
     },
+    subscription: {
+      plan: { type: String, enum: ['starter', 'professional', 'enterprise', 'standard', 'growth'], default: 'starter', index: true },
+      status: { type: String, enum: ['trial', 'active', 'expired', 'inactive', 'suspended'], default: 'trial', index: true },
+      billingType: { type: String, enum: ['trial', 'paid'], default: 'trial', index: true },
+      trialEndsAt: Date,
+      renewalDate: { type: Date, index: true },
+    },
+    platformMetadata: {
+      healthScore: { type: Number, min: 0, max: 100, default: 82 },
+      brandName: String,
+      chainId: { type: Schema.Types.ObjectId, index: true },
+      groupId: { type: Schema.Types.ObjectId, index: true },
+      franchiseId: { type: Schema.Types.ObjectId, index: true },
+      whiteLabelDomain: String,
+      marketplaceEnabled: { type: Boolean, default: false },
+    },
     ownerId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     isActive: { type: Boolean, default: true },
     ...auditFields,
@@ -80,6 +112,8 @@ const hotelSchema = new Schema<IHotel>(
 hotelSchema.index({ slug: 1 });
 hotelSchema.index({ ownerId: 1 });
 hotelSchema.index({ 'address.city': 1 });
+hotelSchema.index({ 'address.country': 1, 'subscription.status': 1 });
+hotelSchema.index({ 'subscription.plan': 1, 'subscription.renewalDate': 1 });
 hotelSchema.plugin(softDeletePlugin);
 
 export const Hotel = mongoose.model<IHotel>('Hotel', hotelSchema);

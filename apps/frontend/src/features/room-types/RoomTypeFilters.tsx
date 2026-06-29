@@ -1,6 +1,7 @@
 'use client';
 
 import { SelectInput } from '@/components/FormInput';
+import { FilterPanel } from '@/components/layout';
 import {
   BED_TYPES,
   INVENTORY_TYPES,
@@ -55,27 +56,46 @@ export const RoomTypeFilters = ({
   onMaxGuestsChange,
   onReset,
 }: RoomTypeFiltersProps) => {
+  const activeCount = [
+    statusFilter,
+    bedTypeFilter,
+    mealPlanFilter,
+    inventoryTypeFilter,
+    websiteFilter,
+    bookingFilter,
+    minPrice,
+    maxPrice,
+    minGuests,
+    maxGuests,
+  ].filter(Boolean).length;
+
   return (
-    <div className="card mb-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-slate-900">Filters</h3>
-        <button type="button" className="text-sm text-primary-600 hover:text-primary-700" onClick={onReset}>
-          Reset filters
-        </button>
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
-        <SelectInput
-          label="Status"
-          value={statusFilter}
-          onChange={(e) => onStatusChange(e.target.value)}
-          options={[{ value: '', label: 'All statuses' }, ...ROOM_TYPE_STATUSES]}
-        />
-        <SelectInput
-          label="Bed Type"
-          value={bedTypeFilter}
-          onChange={(e) => onBedTypeChange(e.target.value)}
-          options={[{ value: '', label: 'All bed types' }, ...BED_TYPES]}
-        />
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <FilterPanel
+        title="More Filters"
+        activeCount={activeCount}
+        onReset={onReset}
+        basicFilters={
+          <>
+            <div className="filter-field">
+              <SelectInput
+                label="Status"
+                value={statusFilter}
+                onChange={(e) => onStatusChange(e.target.value)}
+                options={[{ value: '', label: 'All statuses' }, ...ROOM_TYPE_STATUSES]}
+              />
+            </div>
+            <div className="filter-field">
+              <SelectInput
+                label="Bed Type"
+                value={bedTypeFilter}
+                onChange={(e) => onBedTypeChange(e.target.value)}
+                options={[{ value: '', label: 'All bed types' }, ...BED_TYPES]}
+              />
+            </div>
+          </>
+        }
+      >
         <SelectInput
           label="Meal Plan"
           value={mealPlanFilter}
@@ -150,7 +170,7 @@ export const RoomTypeFilters = ({
             ...[2, 3, 4, 5, 6].map((g) => ({ value: String(g), label: `Up to ${g}` })),
           ]}
         />
-      </div>
+      </FilterPanel>
     </div>
   );
 };

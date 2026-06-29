@@ -2,96 +2,22 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import {
-  BarChart3,
-  BedDouble,
-  Bell,
-  Building2,
-  CalendarDays,
-  ClipboardList,
-  ClipboardCheck,
-  CreditCard,
-  DollarSign,
-  Home,
-  Hotel,
-  MessageCircle,
-  Megaphone,
-  Plug,
-  Settings,
-  Star,
-  Target,
-  UserCheck,
-  Users,
-  WalletCards,
-  Wrench,
-} from 'lucide-react';
-
-const sections = [
-  {
-    label: 'Core Operations',
-    items: [
-      ['/dashboard', 'Dashboard', Home],
-      ['/bookings', 'Bookings', CalendarDays],
-      ['/booking-calendar', 'Booking Calendar', CalendarDays],
-      ['/rooms', 'Rooms', BedDouble],
-      ['/housekeeping', 'Housekeeping', ClipboardCheck],
-      ['/maintenance', 'Maintenance', Wrench],
-      ['/room-types', 'Room Types', Hotel],
-      ['/guests', 'Guest CRM', Users],
-      ['/payments', 'Payments', WalletCards],
-      ['/staff', 'Staff', UserCheck],
-    ],
-  },
-  {
-    label: 'Leads & CRM',
-    items: [
-      ['/leads', 'Lead Center', Target],
-      ['/enquiries', 'Enquiries', MessageCircle],
-      ['/corporate-leads', 'Corporate Leads', Building2],
-      ['/event-leads', 'Event Leads', CalendarDays],
-      ['/follow-ups', 'Follow-ups', ClipboardList],
-    ],
-  },
-  {
-    label: 'Growth',
-    items: [
-      ['/campaigns', 'Campaigns', Megaphone],
-      ['/whatsapp', 'WhatsApp Automation', MessageCircle],
-      ['/reviews', 'Review Growth', Star],
-    ],
-  },
-  {
-    label: 'Analytics',
-    items: [
-      ['/analytics', 'Analytics', BarChart3],
-      ['/reports', 'Reports', DollarSign],
-    ],
-  },
-  {
-    label: 'Automation',
-    items: [
-      ['/tasks', 'Tasks', ClipboardList],
-      ['/notifications', 'Notifications', Bell],
-    ],
-  },
-  {
-    label: 'Platform',
-    items: [
-      ['/hotels', 'Hotel Management', Hotel],
-      ['/integrations', 'Integrations', Plug],
-      ['/settings', 'Settings', Settings],
-    ],
-  },
-] as const;
+import { getNavigationSections, getProductSurface, PRODUCT_COPY } from '@/config/productExperience';
+import { useAuth } from '@/hooks/useAuth';
 
 export function Sidebar() {
   const path = usePathname();
+  const { user } = useAuth();
+  const surface = getProductSurface(user?.role);
+  const product = PRODUCT_COPY[surface];
+  const sections = getNavigationSections(user?.role);
 
   return (
     <aside className="hidden h-screen w-72 shrink-0 overflow-y-auto border-r border-slate-200 bg-white p-4 lg:block">
-      <div className="mb-6 rounded-2xl bg-gradient-to-br from-indigo-600 to-slate-950 p-4 text-white">
-        <p className="font-bold">Hotel Growth OS</p>
-        <p className="text-xs text-indigo-100">Growth, CRM & operations platform</p>
+      <div className={`mb-6 rounded-2xl p-4 text-white ${surface === 'platform' ? 'bg-gradient-to-br from-slate-900 to-indigo-900' : 'bg-gradient-to-br from-indigo-600 to-slate-950'}`}>
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/60">{product.badge}</p>
+        <p className="mt-2 font-bold">{product.title}</p>
+        <p className="mt-1 text-xs text-white/75">{product.subtitle}</p>
       </div>
       <nav className="space-y-5">
         {sections.map((section) => (
@@ -100,7 +26,7 @@ export function Sidebar() {
               {section.label}
             </p>
             <div className="space-y-1">
-              {section.items.map(([href, label, Icon]) => {
+              {section.items.map(({ href, label, icon: Icon }) => {
                 const active = path === href || (href !== '/dashboard' && path.startsWith(`${href}/`));
                 return (
                   <Link

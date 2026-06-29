@@ -1,5 +1,6 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import { Search } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 import { debounce } from '@/utils/format';
@@ -10,7 +11,7 @@ import { Pagination } from './Pagination';
 export interface Column<T> {
   key: string;
   header: string;
-  render?: (row: T) => any;
+  render?: (row: T) => ReactNode;
   className?: string;
 }
 
@@ -21,7 +22,9 @@ interface DataTableProps<T> {
   error?: string | null;
   searchPlaceholder?: string;
   onSearch?: (query: string) => void;
-  filters?: React.ReactNode;
+  filters?: ReactNode;
+  compact?: boolean;
+  hideToolbar?: boolean;
   pagination?: {
     page: number;
     totalPages: number;
@@ -41,6 +44,8 @@ export function DataTable<T>({
   searchPlaceholder = 'Search...',
   onSearch,
   filters,
+  compact = false,
+  hideToolbar = false,
   pagination,
   emptyTitle,
   emptyDescription,
@@ -65,8 +70,8 @@ export function DataTable<T>({
 
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-      {(onSearch || filters) && (
-        <div className="flex flex-col gap-3 border-b border-slate-200 p-4 sm:flex-row sm:items-center">
+      {!hideToolbar && (onSearch || filters) && (
+        <div className="flex flex-col gap-3 border-b border-slate-200 p-3 sm:flex-row sm:items-center sm:p-4">
           {onSearch && (
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -88,11 +93,11 @@ export function DataTable<T>({
       )}
 
       {isLoading ? (
-        <div className="py-16">
+        <div className="py-12">
           <LoadingSpinner />
         </div>
       ) : data.length === 0 ? (
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           <EmptyState title={emptyTitle} description={emptyDescription} />
         </div>
       ) : (
@@ -103,7 +108,7 @@ export function DataTable<T>({
                 {columns.map((col) => (
                   <th
                     key={col.key}
-                    className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 ${col.className || ''}`}
+                    className={`px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 ${col.className || ''}`}
                   >
                     {col.header}
                   </th>
@@ -112,9 +117,9 @@ export function DataTable<T>({
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white">
               {data.map((row) => (
-                <tr key={rowKey(row)} className="transition hover:bg-slate-50">
+                <tr key={rowKey(row)} className="transition hover:bg-slate-50/80">
                   {columns.map((col) => (
-                    <td key={col.key} className={`whitespace-nowrap px-4 py-3 text-sm text-slate-700 ${col.className || ''}`}>
+                    <td key={col.key} className={`whitespace-nowrap px-4 text-sm text-slate-700 ${compact ? 'py-2.5' : 'py-3.5'} ${col.className || ''}`}>
                       {col.render
                         ? col.render(row)
                         : String((row as Record<string, unknown>)[col.key] ?? '—')}

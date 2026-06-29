@@ -25,6 +25,7 @@ import {
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { useAuth } from '@/hooks/useAuth';
 import { getDashboard, type DashboardResponse } from '@/services/dashboard.service';
+import { getPlatformDashboard, type PlatformDashboardResponse } from '@/services/platform.service';
 import { capitalize, formatCurrency, formatDate } from '@/utils/format';
 
 const emptyDashboard: DashboardResponse = {
@@ -262,6 +263,197 @@ function DashboardSkeleton() {
   );
 }
 
+function PlatformConsoleDashboard({ userName }: { userName?: string }) {
+  const [platform, setPlatform] = useState<PlatformDashboardResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadPlatform = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      setPlatform(await getPlatformDashboard());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to load platform dashboard');
+      setPlatform(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadPlatform();
+  }, []);
+
+  if (loading) return <DashboardSkeleton />;
+
+  if (error) {
+    return (
+      <div className="rounded-3xl border border-red-200 bg-red-50 p-8 text-center">
+        <p className="text-lg font-semibold text-red-800">Platform dashboard could not load</p>
+        <p className="mt-2 text-sm text-red-600">{error}</p>
+        <button type="button" className="btn-primary mt-5" onClick={() => void loadPlatform()}>
+          <RefreshCw className="mr-2 h-4 w-4" />
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  const overview = platform?.overview;
+  const platformCards = [
+    {
+      title: 'Total Hotels',
+      value: overview?.totalHotels ?? 0,
+      helper: `${overview?.activeHotels ?? 0} active · ${overview?.inactiveHotels ?? 0} inactive`,
+      icon: <Building2 className="h-5 w-5" />,
+      href: '/hotels',
+      accent: 'indigo' as const,
+    },
+    {
+      title: 'Total Users',
+      value: overview?.totalUsers ?? 0,
+      helper: `${overview?.activeUsers ?? 0} active users`,
+      icon: <Users className="h-5 w-5" />,
+      href: '/users',
+      accent: 'purple' as const,
+    },
+    {
+      title: 'Platform Revenue',
+      value: formatCurrency(overview?.platformRevenue ?? 0),
+      helper: 'Future-ready billing metric',
+      icon: <IndianRupee className="h-5 w-5" />,
+      href: '/billing',
+      accent: 'emerald' as const,
+    },
+    {
+      title: 'New Hotels This Month',
+      value: overview?.newHotelsThisMonth ?? 0,
+      helper: `${overview?.monthlySignups ?? 0} monthly signups`,
+      icon: <TrendingUp className="h-5 w-5" />,
+      href: '/hotels',
+      accent: 'sky' as const,
+    },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+        <div className="relative bg-gradient-to-br from-slate-900 via-indigo-900 to-slate-950 px-5 py-6 text-white sm:px-6 lg:px-8">
+          <div className="absolute right-0 top-0 h-44 w-44 rounded-full bg-white/10 blur-3xl" />
+          <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.25em] text-indigo-100">
+                SaaS Platform Console
+              </p>
+              <h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">
+                Welcome back{userName ? `, ${userName.split(' ')[0]}` : ''}
+              </h1>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-indigo-100">
+                Manage tenants, platform analytics, integrations, settings, and system operations separately from hotel workflows.
+              </p>
+            </div>
+            <Link href="/hotels" className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-100">
+              Manage Hotels
+              <ArrowRight className="ml-2 inline h-4 w-4" />
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {platformCards.map((card) => (
+          <Link key={card.title} href={card.href} className="block">
+            <KpiCard title={card.title} value={card.value} helper={card.helper} icon={card.icon} accent={card.accent} />
+          </Link>
+        ))}
+      </div>
+
+      <div className="grid gap-5 lg:grid-cols-2">
+        <SectionCard title="Platform Product Boundary" subtitle="Super Admin manages the SaaS, not daily hotel operations">
+          <div className="space-y-3">
+            <MetricRow label="Trial Hotels" value={overview?.trialHotels ?? 0} />
+            <MetricRow label="Expired Hotels" value={overview?.expiredHotels ?? 0} />
+            <MetricRow label="Active Sessions" value={overview?.activeSessions ?? 0} />
+            <MetricRow label="Storage Usage" value={overview?.storageUsage ?? 'Not configured'} />
+          </div>
+        </SectionCard>
+
+        <SectionCard title="Platform Quick Actions" subtitle="SaaS administration entry points">
+          <div className="grid gap-3 sm:grid-cols-2">
+            {[
+              { href: '/hotels', label: 'Create Hotel', icon: <Plus className="h-4 w-4" /> },
+              { href: '/hotels', label: 'Manage Hotels', icon: <Building2 className="h-4 w-4" /> },
+              { href: '/subscriptions', label: 'Subscriptions', icon: <WalletCards className="h-4 w-4" /> },
+              { href: '/reports', label: 'Platform Reports', icon: <FileBarChart2 className="h-4 w-4" /> },
+              { href: '/support', label: 'Support Center', icon: <MessageCircle className="h-4 w-4" /> },
+              { href: '/settings', label: 'Global Settings', icon: <MessageSquare className="h-4 w-4" /> },
+            ].map((action) => (
+              <Link
+                key={action.href + action.label}
+                href={action.href}
+                className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700"
+              >
+                <span className="flex items-center gap-2">{action.icon}{action.label}</span>
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            ))}
+          </div>
+        </SectionCard>
+      </div>
+
+      <div className="grid gap-5 lg:grid-cols-2">
+
+        <SectionCard title="System Health" subtitle="Platform service readiness">
+          <div className="space-y-3">
+            {Object.entries(platform?.health ?? {}).map(([key, value]) => (
+              <MetricRow key={key} label={capitalize(key)} value={capitalize(value.replace(/_/g, ' '))} />
+            ))}
+          </div>
+        </SectionCard>
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-3">
+        {Object.entries(platform?.charts ?? {}).slice(0, 6).map(([key, points]) => (
+          <SectionCard key={key} title={capitalize(key.replace(/([A-Z])/g, ' $1'))}>
+            <div className="flex h-32 items-end gap-2">
+              {points.map((point) => {
+                const max = Math.max(1, ...points.map((item) => item.value));
+                return (
+                  <div key={point.label} className="flex flex-1 flex-col items-center gap-1">
+                    <div className="flex h-24 w-full items-end rounded-full bg-slate-100">
+                      <div className="w-full rounded-full bg-indigo-600" style={{ height: `${Math.max(6, (point.value / max) * 100)}%` }} />
+                    </div>
+                    <span className="text-[10px] text-slate-500">{point.label}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </SectionCard>
+        ))}
+      </div>
+
+      <SectionCard title="Recent Platform Activities" subtitle="Audit-backed platform activity feed">
+        {platform?.recentActivities.length ? (
+          <div className="space-y-3">
+            {platform.recentActivities.map((activity) => (
+              <div key={activity.id} className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-slate-900">{activity.action.replace(/_/g, ' ')}</p>
+                  <span className="text-xs text-slate-500">{formatDate(activity.createdAt)}</span>
+                </div>
+                <p className="mt-1 text-xs text-slate-500">{activity.entity} · {activity.actor}{activity.hotel ? ` · ${activity.hotel}` : ''}</p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <TableEmpty label="No platform activity yet" />
+        )}
+      </SectionCard>
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const { user } = useAuth();
   const [data, setData] = useState<DashboardResponse | null>(null);
@@ -269,6 +461,13 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
 
   const loadDashboard = async () => {
+    if (user?.role === 'super_admin') {
+      setData(null);
+      setError(null);
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
     try {
@@ -284,7 +483,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     void loadDashboard();
-  }, []);
+  }, [user?.role]);
 
   const dashboard = data || emptyDashboard;
   const summary = dashboard.summary;
@@ -354,6 +553,10 @@ export default function DashboardPage() {
   );
 
   if (isLoading) return <DashboardSkeleton />;
+
+  if (user?.role === 'super_admin') {
+    return <PlatformConsoleDashboard userName={user.name} />;
+  }
 
   if (error) {
     return (

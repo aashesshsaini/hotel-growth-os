@@ -14,6 +14,8 @@ import {
 import { FormInput, SelectInput } from '@/components/FormInput';
 import { PageHeader } from '@/components/PageHeader';
 import { useToast } from '@/components/Toast';
+import { useAuth } from '@/hooks/useAuth';
+import { PlatformPlaceholderPage } from '@/features/platform/components/PlatformPlaceholderPage';
 import { QuickReportButton, ReportCategoryCard } from '@/features/reports/components/ReportCategoryCard';
 import { ReportPreviewTable, ReportSummaryStrip } from '@/features/reports/components/ReportPreviewTable';
 import {
@@ -81,6 +83,7 @@ function downloadExport(result: { filename: string; contentType: string; data: s
 }
 
 export default function ReportsPage() {
+  const { user } = useAuth();
   const { showToast } = useToast();
   const [period, setPeriod] = useState('this_month');
   const [fromDate, setFromDate] = useState('');
@@ -113,6 +116,10 @@ export default function ReportsPage() {
   }, []);
 
   const loadSummary = useCallback(async () => {
+    if (user?.role === 'super_admin') {
+      setIsSummaryLoading(false);
+      return;
+    }
     setIsSummaryLoading(true);
     setError(null);
     try {
@@ -123,9 +130,13 @@ export default function ReportsPage() {
     } finally {
       setIsSummaryLoading(false);
     }
-  }, [queryParams]);
+  }, [queryParams, user?.role]);
 
   const loadReport = useCallback(async () => {
+    if (user?.role === 'super_admin') {
+      setIsReportLoading(false);
+      return;
+    }
     setIsReportLoading(true);
     try {
       setReport(await getCategoryReport(selectedCategory, queryParams));
@@ -135,7 +146,7 @@ export default function ReportsPage() {
     } finally {
       setIsReportLoading(false);
     }
-  }, [selectedCategory, queryParams]);
+  }, [selectedCategory, queryParams, user?.role]);
 
   useEffect(() => {
     void loadSummary();
@@ -169,6 +180,16 @@ export default function ReportsPage() {
       setIsExporting(false);
     }
   };
+
+  if (user?.role === 'super_admin') {
+    return (
+      <PlatformPlaceholderPage
+        title="Platform Reports"
+        subtitle="Export SaaS tenant, subscription, billing, audit, support, and usage reports."
+        focus={['Tenant reports', 'Subscription reports', 'Billing reports', 'Audit exports', 'Support reports', 'Usage exports']}
+      />
+    );
+  }
 
   const handleSaveReport = () => {
     const label = summary.categories.find((item) => item.id === selectedCategory)?.title || report.title;

@@ -16,8 +16,11 @@ import {
   Users,
   Wallet,
 } from 'lucide-react';
+import { DataTable, type Column } from '@/components/DataTable';
 import { FormInput, SelectInput } from '@/components/FormInput';
+import { LoadingState, ModulePageLayout, ModuleToolbar, StatCard, SummaryCardGrid } from '@/components/layout';
 import { useToast } from '@/components/Toast';
+import { useAuth } from '@/hooks/useAuth';
 import { BarChartWidget } from '@/features/analytics/components/BarChartWidget';
 import { DonutChartWidget } from '@/features/analytics/components/DonutChartWidget';
 import { KpiCard } from '@/features/analytics/components/KpiCard';
@@ -25,8 +28,9 @@ import { SectionPanel } from '@/features/analytics/components/SectionPanel';
 import { TrendAreaChart } from '@/features/analytics/components/TrendAreaChart';
 import { ANALYTICS_PERIODS, ANALYTICS_TABS, EXPORT_TYPES, type AnalyticsTabId } from '@/features/analytics/constants';
 import { exportAnalytics, getAnalyticsOverview } from '@/services/analytics.service';
+import { getPlatformAnalytics, getPlatformPlans, type PlatformAnalyticsResponse, type PlatformPlan } from '@/services/platform.service';
 import type { AnalyticsOverview } from '@/types';
-import { formatCurrency } from '@/utils/format';
+import { formatCurrency, formatDate } from '@/utils/format';
 
 const emptyOverview: AnalyticsOverview = {
   generatedAt: '',
@@ -60,7 +64,177 @@ function downloadCsv(filename: string, data: string) {
   URL.revokeObjectURL(url);
 }
 
+function PlatformAnalyticsDashboard() {
+  const [plans, setPlans] = useState<PlatformPlan[]>([]);
+  const [analytics, setAnalytics] = useState<PlatformAnalyticsResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [planId, setPlanId] = useState('');
+  const [country, setCountry] = useState('');
+  const [status, setStatus] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+  const [minRevenue, setMinRevenue] = useState('');
+  const [maxRevenue, setMaxRevenue] = useState('');
+
+  const loadPlatformAnalytics = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [planResult, analyticsResult] = await Promise.all([
+        getPlatformPlans({ limit: 100 }),
+        getPlatformAnalytics({
+          planId: planId || undefined,
+          country: country || undefined,
+          status: status || undefined,
+          fromDate: fromDate || undefined,
+          toDate: toDate || undefined,
+          minRevenue: minRevenue || undefined,
+          maxRevenue: maxRevenue || undefined,
+        }),
+      ]);
+      setPlans(planResult.data);
+      setAnalytics(analyticsResult);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load platform analytics');
+    } finally {
+      setLoading(false);
+    }
+  }, [country, fromDate, maxRevenue, minRevenue, planId, status, toDate]);
+
+  useEffect(() => { void loadPlatformAnalytics(); }, [loadPlatformAnalytics]);
+
+  const hotelColumns = useMemo<Column<PlatformAnalyticsResponse['hotelPerformance'][number]>[]>(
+    () => [
+      { key: 'hotelName', header: 'Hotel', render: (hotel) => <div className="font-semibold text-slate-950">{hotel.hotelName}</div> },
+      { key: 'planName', header: 'Plan', render: (hotel) => hotel.planName },
+      { key: 'subscriptionStatus', header: 'Status', render: (hotel) => <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">{hotel.subscriptionStatus}</span> },
+      { key: 'rooms', header: 'Rooms', render: (hotel) => `${hotel.activeRooms}/${hotel.totalRooms}` },
+      { key: 'occupancyRate', header: 'Occupancy', render: (hotel) => `${hotel.occupancyRate}%` },
+      { key: 'staffCount', header: 'Staff / Users', render: (hotel) => `${hotel.staffCount} staff · ${hotel.activeUsers} users` },
+      { key: 'lastLogin', header: 'Last Login', render: (hotel) => hotel.lastLogin ? formatDate(hotel.lastLogin) : '—' },
+      { key: 'engagementScore', header: 'Engagement', render: (hotel) => `${hotel.engagementScore}%` },
+    ],
+    []
+  );
+
+  const clearFilters = () => {
+    setPlanId('');
+    setCountry('');
+    setStatus('');
+    setFromDate('');
+    setToDate('');
+    setMinRevenue('');
+    setMaxRevenue('');
+  };
+
+  if (loading) {
+    return <LoadingState variant="page" />;
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
+        {error}
+      </div>
+    );
+  }
+
+  if (!analytics) return null;
+
+  const metrics = analytics.metrics;
+
+  return (
+    <ModulePageLayout
+      title="Platform Analytics"
+      subtitle="Revenue, subscriptions, hotel performance, platform usage, growth, retention, and operational intelligence."
+      actions={<button type="button" className="btn-secondary" onClick={() => void loadPlatformAnalytics()}><RefreshCw className="mr-2 h-4 w-4" />Refresh</button>}
+      toolbar={
+        <ModuleToolbar
+          actions={<button type="button" className="btn-secondary !px-3 !py-2" onClick={clearFilters}>Clear Filters</button>}
+          filters={
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+              <SelectInput label="Plan" value={planId} onChange={(e) => setPlanId(e.target.value)} options={[{ value: '', label: 'All plans' }, ...plans.map((plan) => ({ value: plan.id, label: plan.name }))]} />
+              <SelectInput label="Status" value={status} onChange={(e) => setStatus(e.target.value)} options={[{ value: '', label: 'All statuses' }, { value: 'trial', label: 'Trial' }, { value: 'active', label: 'Active' }, { value: 'paid', label: 'Paid' }, { value: 'suspended', label: 'Suspended' }, { value: 'inactive', label: 'Inactive' }]} />
+              <FormInput label="Country" value={country} onChange={(e) => setCountry(e.target.value)} />
+              <FormInput label="From" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+              <FormInput label="To" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+              <FormInput label="Min Revenue" type="number" value={minRevenue} onChange={(e) => setMinRevenue(e.target.value)} />
+              <FormInput label="Max Revenue" type="number" value={maxRevenue} onChange={(e) => setMaxRevenue(e.target.value)} />
+            </div>
+          }
+        />
+      }
+    >
+      <div className="space-y-6">
+        <SummaryCardGrid columns={4}>
+          <StatCard title="Hotels" value={metrics.totalHotels} helper={`${metrics.activeHotels} active · ${metrics.suspendedHotels} suspended`} icon={<BarChart3 className="h-5 w-5" />} />
+          <StatCard title="MRR" value={formatCurrency(metrics.mrr)} helper={`ARR ${formatCurrency(metrics.arr)}`} icon={<IndianRupee className="h-5 w-5" />} />
+          <StatCard title="Churn / Retention" value={`${metrics.churnRate}% / ${metrics.retentionRate}%`} helper="Retention model is future-ready" icon={<TrendingUp className="h-5 w-5" />} />
+          <StatCard title="Invoices" value={metrics.totalInvoicesGenerated} helper={`${metrics.totalPaidInvoices} paid · ${metrics.overdueInvoices} overdue`} icon={<Wallet className="h-5 w-5" />} />
+        </SummaryCardGrid>
+
+        <div className="grid gap-4 xl:grid-cols-2">
+          <TrendAreaChart title="Revenue Trend" data={analytics.revenue.revenueTrend} valueFormatter={formatCurrency} color="emerald" />
+          <TrendAreaChart title="Growth Curve" data={analytics.revenue.growthCurve} valueFormatter={formatCurrency} color="violet" />
+          <TrendAreaChart title="MRR Chart" data={analytics.revenue.mrrTrend} valueFormatter={formatCurrency} color="indigo" />
+          <TrendAreaChart title="ARR Chart" data={analytics.revenue.arrTrend} valueFormatter={formatCurrency} color="amber" />
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-3">
+          <DonutChartWidget title="Revenue by Plan" data={analytics.revenue.byPlan} />
+          <BarChartWidget title="Revenue by Hotel" data={analytics.revenue.byHotel} valueFormatter={formatCurrency} />
+          <BarChartWidget title="Revenue by Country / Region" data={analytics.revenue.byCountry} valueFormatter={formatCurrency} />
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-3">
+          <DonutChartWidget title="Plan Distribution" data={analytics.subscriptions.planDistribution} />
+          <DonutChartWidget title="Trial vs Paid" data={analytics.subscriptions.trialVsPaid} />
+          <BarChartWidget title="Usage Heatmap Placeholder" data={analytics.usage.moduleUsageHeatmap} />
+        </div>
+
+        <SummaryCardGrid columns={4}>
+          <StatCard title="Trial Conversion" value={`${analytics.subscriptions.trialConversionRate}%`} helper={`${analytics.segments.trialUsers} trial · ${analytics.segments.paidUsers} paid`} />
+          <StatCard title="Upgrade / Downgrade" value={`${analytics.subscriptions.upgradeRate}% / ${analytics.subscriptions.downgradeRate}%`} helper="Future-ready subscription event model" />
+          <StatCard title="High Value Hotels" value={analytics.segments.highValueHotels} helper="Engagement score >= 85" />
+          <StatCard title="At-Risk Hotels" value={analytics.segments.atRiskHotels} helper="Low engagement or suspended" />
+        </SummaryCardGrid>
+
+        <DataTable
+          compact
+          hideToolbar
+          columns={hotelColumns}
+          data={analytics.hotelPerformance}
+          rowKey={(hotel) => hotel.hotelId}
+          emptyTitle="No hotel performance data"
+          emptyDescription="Hotel performance rows will appear once tenants are available."
+        />
+
+        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 className="text-lg font-semibold text-slate-950">Global Activity Timeline</h2>
+          <div className="mt-4 space-y-3">
+            {analytics.activityTimeline.length === 0 ? (
+              <p className="rounded-xl bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">No platform activity yet.</p>
+            ) : (
+              analytics.activityTimeline.map((item) => (
+                <div key={item.id} className="rounded-xl bg-slate-50 px-4 py-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-slate-900">{item.action.replace(/_/g, ' ')}</p>
+                    <span className="text-xs text-slate-500">{formatDate(item.timestamp)}</span>
+                  </div>
+                  <p className="mt-1 text-xs text-slate-500">{item.actor} · {item.entity}{item.entityAffected ? ` · ${item.entityAffected}` : ''}</p>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
+      </div>
+    </ModulePageLayout>
+  );
+}
+
 export default function AnalyticsPage() {
+  const { user } = useAuth();
   const { showToast } = useToast();
   const [tab, setTab] = useState<AnalyticsTabId>('overview');
   const [period, setPeriod] = useState('monthly');
@@ -78,6 +252,10 @@ export default function AnalyticsPage() {
   }), [period, fromDate, toDate]);
 
   const loadData = useCallback(async () => {
+    if (user?.role === 'super_admin') {
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     setError(null);
     try {
@@ -88,7 +266,7 @@ export default function AnalyticsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [queryParams]);
+  }, [queryParams, user?.role]);
 
   useEffect(() => { void loadData(); }, [loadData]);
 
@@ -101,6 +279,10 @@ export default function AnalyticsPage() {
       showToast(err instanceof Error ? err.message : 'Export failed', 'error');
     }
   };
+
+  if (user?.role === 'super_admin') {
+    return <PlatformAnalyticsDashboard />;
+  }
 
   const summary = data.executiveSummary;
 

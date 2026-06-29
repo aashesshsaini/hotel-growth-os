@@ -68,6 +68,22 @@ export const resolveCalendarRange = (
 const guestName = (guest: { fullName?: string; name?: string; phone?: string } | null | undefined) =>
   guest?.fullName || guest?.name || guest?.phone || 'Guest';
 
+/** Extract a Mongo id string from a raw ObjectId or populated document */
+const toIdString = (value: unknown): string | undefined => {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value === 'string') return value;
+  if (typeof value === 'object') {
+    if ('_id' in value && (value as { _id?: unknown })._id != null) {
+      return String((value as { _id: unknown })._id);
+    }
+    if ('toString' in value && typeof (value as { toString: () => string }).toString === 'function') {
+      const asString = (value as { toString: () => string }).toString();
+      if (/^[a-f\d]{24}$/i.test(asString)) return asString;
+    }
+  }
+  return undefined;
+};
+
 const getColorKey = (booking: {
   status: string;
   bookingType?: string;
@@ -203,9 +219,9 @@ const detectConflicts = async (hotelId: string, bookings: Array<{ _id: unknown; 
   const roomBookings = new Map<string, typeof bookings>();
 
   bookings.forEach((booking) => {
-    if (!booking.roomId) return;
-    const key = String(booking.roomId);
-    roomBookings.set(key, [...(roomBookings.get(key) ?? []), booking]);
+    const roomId = toIdString(booking.roomId);
+    if (!roomId) return;
+    roomBookings.set(roomId, [...(roomBookings.get(roomId) ?? []), booking]);
   });
 
   roomBookings.forEach((items) => {
@@ -220,12 +236,14 @@ const detectConflicts = async (hotelId: string, bookings: Array<{ _id: unknown; 
     }
   });
 
-  const assignedBookings = bookings.filter((b) => b.roomId);
+  const assignedBookings = bookings.filter((b) => toIdString(b.roomId));
   await Promise.all(
     assignedBookings.map(async (booking) => {
+      const roomId = toIdString(booking.roomId);
+      if (!roomId) return;
       const result = await findBookingConflictRepository(
         hotelId,
-        String(booking.roomId),
+        roomId,
         booking.checkInDate,
         booking.checkOutDate,
         String(booking._id)
@@ -379,7 +397,7 @@ export const getCalendarBookingsRepository = async (
   const resources: CalendarResource[] = rooms.map((room) => ({
     id: String(room._id),
     roomNumber: room.roomNumber,
-    roomTypeId: String(room.roomTypeId),
+    roomTypeId: toIdString(room.roomTypeId) ?? '',
     roomTypeName: (room.roomTypeId as { name?: string } | null)?.name || 'Room Type',
     floor: room.floor,
     status: room.status,
@@ -541,7 +559,7 @@ export const getCalendarAvailabilityRepository = async (
       return {
         roomId: String(room._id),
         roomNumber: room.roomNumber,
-        roomTypeId: String(room.roomTypeId),
+        roomTypeId: toIdString(room.roomTypeId) ?? '',
         roomTypeName: (room.roomTypeId as { name?: string } | null)?.name || 'Room Type',
         floor: room.floor,
         isAvailable: !conflict.hasConflict,

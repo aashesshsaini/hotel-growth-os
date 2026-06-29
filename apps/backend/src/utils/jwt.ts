@@ -7,6 +7,8 @@ export interface JwtPayload {
   email: string;
   role: UserRole;
   hotelId?: string;
+  impersonatedBy?: string;
+  impersonationSessionId?: string;
 }
 
 export const generateToken = (payload: JwtPayload): string => {

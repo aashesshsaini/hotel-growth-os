@@ -6,8 +6,8 @@ import { ConfirmDialog, Modal } from '@/components/Modal';
 import { DataTable, type Column } from '@/components/DataTable';
 import { DashboardCard } from '@/components/DashboardCard';
 import { FormInput, SelectInput, TextArea } from '@/components/FormInput';
-import { PageHeader } from '@/components/PageHeader';
 import { useToast } from '@/components/Toast';
+import { ModulePageLayout, SummaryCardGrid } from '@/components/layout';
 import { usePaginatedQuery } from '@/hooks/usePaginatedQuery';
 import type { GenericEntity, ListParams, PaginatedResponse } from '@/types';
 import { getEntityId } from '@/types';
@@ -217,33 +217,34 @@ export function ModuleCrudPage({
   const openCount = data.filter((row) => ['new', 'pending', 'draft', 'scheduled', 'contacted'].includes(String(row.status))).length;
 
   return (
-    <div>
-      <PageHeader
-        title={title}
-        subtitle={subtitle}
-        actions={
-          create ? (
-            <button type="button" className="btn-primary" onClick={openCreate}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add {title}
-            </button>
-          ) : undefined
-        }
-      />
-
-      {comingSoon && (
-        <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          <span className="font-semibold">Advanced workflow pending:</span> {comingSoon}
-        </div>
-      )}
-
-      <div className="mb-6 grid gap-4 sm:grid-cols-3">
-        <DashboardCard title="Total Records" value={pagination.total} />
-        <DashboardCard title="Active / Completed" value={activeCount} />
-        <DashboardCard title="Open / Draft" value={openCount} />
-      </div>
-
+    <ModulePageLayout
+      title={title}
+      subtitle={subtitle}
+      actions={
+        create ? (
+          <button type="button" className="btn-primary" onClick={openCreate}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add {title}
+          </button>
+        ) : undefined
+      }
+      summary={
+        <>
+          {comingSoon && (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              <span className="font-semibold">Advanced workflow pending:</span> {comingSoon}
+            </div>
+          )}
+          <SummaryCardGrid columns={3}>
+            <DashboardCard title="Total Records" value={pagination.total} />
+            <DashboardCard title="Active / Completed" value={activeCount} />
+            <DashboardCard title="Open / Draft" value={openCount} />
+          </SummaryCardGrid>
+        </>
+      }
+    >
       <DataTable
+        compact
         columns={tableColumns}
         data={data}
         isLoading={isLoading}
@@ -343,6 +344,6 @@ export function ModuleCrudPage({
         message={`Delete ${deleteTarget ? getDisplayName(deleteTarget) : 'this record'}? This will use the existing backend delete endpoint.`}
         isLoading={isSaving}
       />
-    </div>
+    </ModulePageLayout>
   );
 }

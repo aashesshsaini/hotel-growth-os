@@ -22,10 +22,12 @@ import calendarRoutes from '../modules/calendar/calendar.routes';
 import reportRoutes from '../modules/reports/reports.routes';
 import taskRoutes from '../modules/tasks/tasks.routes';
 import notificationRoutes from '../modules/notifications/notifications.routes';
+import platformRoutes from '../modules/platform/platform.routes';
 
 const router = Router();
 
 router.use('/auth', authRoutes);
+router.use('/platform', platformRoutes);
 router.use('/hotels', hotelRoutes);
 router.use('/staff', staffRoutes);
 router.use('/room-types', roomTypeRoutes);
