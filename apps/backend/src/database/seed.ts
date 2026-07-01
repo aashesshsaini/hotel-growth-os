@@ -7,6 +7,20 @@ import { logger } from '../utils/logger';
 const seed = async (): Promise<void> => {
   await connectDatabase();
 
+  const password = await hashPassword(config.seed.superAdminPassword);
+
+  const demoOwner = await User.findOneAndUpdate(
+    { email: 'demo-owner@hotelgrowthos.com' },
+    {
+      name: 'Demo Hotel Owner',
+      email: 'demo-owner@hotelgrowthos.com',
+      password,
+      role: 'hotel_owner',
+      isActive: true,
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+
   const hotel = await Hotel.findOneAndUpdate(
     { slug: 'demo-hotel' },
     {
@@ -15,11 +29,17 @@ const seed = async (): Promise<void> => {
       email: 'demo@hotelgrowthos.com',
       phone: '9876543210',
       isActive: true,
+      ownerId: demoOwner._id,
     },
     { upsert: true, new: true, setDefaultsOnInsert: true }
   );
 
-  const password = await hashPassword(config.seed.superAdminPassword);
+  await User.findOneAndUpdate(
+    { _id: demoOwner._id },
+    { hotelId: hotel._id },
+    { new: true }
+  );
+
   await User.findOneAndUpdate(
     { email: config.seed.superAdminEmail },
     {

@@ -50,6 +50,18 @@ export const config = {
     verifyToken: process.env.WHATSAPP_VERIFY_TOKEN || 'hotel-growth-os-verify-token',
     webhookSecret: process.env.WHATSAPP_WEBHOOK_SECRET || '',
   },
+  automation: {
+    queueName: process.env.AUTOMATION_QUEUE_NAME || 'automation',
+    schedulerEnabled: process.env.AUTOMATION_SCHEDULER_ENABLED !== 'false',
+    schedulerPollIntervalMs: parseInt(process.env.AUTOMATION_SCHEDULER_POLL_INTERVAL_MS || '30000', 10),
+    workerCount: parseInt(process.env.AUTOMATION_WORKER_COUNT || '2', 10),
+    defaultRetryCount: parseInt(process.env.AUTOMATION_DEFAULT_RETRY_COUNT || '3', 10),
+    defaultRetryDelayMs: parseInt(process.env.AUTOMATION_DEFAULT_RETRY_DELAY_MS || '300000', 10),
+    defaultTimeoutMs: parseInt(process.env.AUTOMATION_DEFAULT_TIMEOUT_MS || '60000', 10),
+    defaultJobExpiryMs: parseInt(process.env.AUTOMATION_DEFAULT_JOB_EXPIRY_MS || '604800000', 10),
+    removeOnComplete: parseInt(process.env.AUTOMATION_REMOVE_ON_COMPLETE || '1000', 10),
+    removeOnFail: parseInt(process.env.AUTOMATION_REMOVE_ON_FAIL || '5000', 10),
+  },
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
   seed: {
     superAdminEmail: process.env.SUPER_ADMIN_EMAIL || 'admin@hotelgrowthos.com',

@@ -1,12 +1,18 @@
 import { Router } from 'express';
 import { authMiddleware } from '../../middlewares/authMiddleware';
 import { hotelAccessMiddleware } from '../../middlewares/hotelAccessMiddleware';
+import { roleMiddleware } from '../../middlewares/roleMiddleware';
 import { validate } from '../../validations/validate';
-import { createSchema, idParamSchema, listQuerySchema, updateSchema } from './validation';
+import { changePasswordSchema, createSchema, hotelSettingsSchema, idParamSchema, listQuerySchema, updateSchema } from './validation';
 import * as controller from './controller';
 
 const router = Router();
+const hotelSettingsViewRoles = ['super_admin', 'hotel_owner', 'hotel_manager'] as const;
+const hotelSettingsManageRoles = ['super_admin', 'hotel_owner', 'hotel_manager'] as const;
 router.use(authMiddleware, hotelAccessMiddleware);
+router.get('/settings', roleMiddleware(...hotelSettingsViewRoles), controller.getSettings);
+router.put('/settings', roleMiddleware(...hotelSettingsManageRoles), validate(hotelSettingsSchema), controller.updateSettings);
+router.post('/settings/security/password', roleMiddleware(...hotelSettingsManageRoles), validate(changePasswordSchema), controller.changePassword);
 router.get('/', validate(listQuerySchema, 'query'), controller.list);
 router.get('/:id', validate(idParamSchema, 'params'), controller.getById);
 router.post('/', validate(createSchema), controller.create);

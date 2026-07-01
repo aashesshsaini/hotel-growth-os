@@ -3,7 +3,7 @@ import { recordBookingPayment } from '../payments/payments.service';
 import { Booking, BookingRoom, Guest, Payment, Review, Room } from '../../models';
 import { paginate } from '../../utils/pagination';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../../utils/errors';
-import { triggerCheckoutReviewRequest } from '../reviews/reviews.service';
+import { handleBookingCheckoutReviewTrigger } from '../reviewGrowth/reviewGrowth.automation';
 import {
   AssignRoomInput,
   CancelInput,
@@ -303,12 +303,12 @@ export const updateStatus = async (id: string, input: StatusInput, viewer: Viewe
   await syncRoomForBooking(doc, input.status, viewer);
   await syncGuestBookingMetrics(doc.guestId, doc.hotelId);
   if (['checked_out', 'completed'].includes(input.status)) {
-    await triggerCheckoutReviewRequest({
-      _id: doc._id,
+    await handleBookingCheckoutReviewTrigger({
+      bookingId: doc._id,
       hotelId: doc.hotelId,
       guestId: doc.guestId,
-      createdBy: doc.createdBy,
-      updatedBy: doc.updatedBy,
+      bookingStatus: input.status as 'checked_out' | 'completed',
+      userId: viewer.userId,
     });
   }
   return getById(id, viewer);

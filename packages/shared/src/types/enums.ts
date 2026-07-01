@@ -240,3 +240,40 @@ export type ReviewSource = (typeof REVIEW_SOURCES)[number];
 
 export const REVIEW_CHANNELS = ['whatsapp', 'sms', 'email', 'in_stay', 'staff', 'website'] as const;
 export type ReviewChannel = (typeof REVIEW_CHANNELS)[number];
+
+export const REVIEW_GROWTH_CAMPAIGN_TRIGGERS = [
+  'BOOKING_COMPLETED',
+  'CHECKOUT',
+  'MANUAL',
+] as const;
+export type ReviewGrowthCampaignTrigger = (typeof REVIEW_GROWTH_CAMPAIGN_TRIGGERS)[number];
+
+export const REVIEW_REQUEST_STATUSES = [
+  'PENDING',
+  'QUEUED',
+  'PROCESSING',
+  'SENT',
+  'DELIVERED',
+  'OPENED',
+  'CLICKED',
+  'REVIEWED',
+  'FAILED',
+  'EXPIRED',
+] as const;
+export type ReviewRequestStatus = (typeof REVIEW_REQUEST_STATUSES)[number];
+
+export const INTERNAL_FEEDBACK_STATUSES = [
+  'OPEN',
+  'IN_PROGRESS',
+  'RESOLVED',
+  'CLOSED',
+] as const;
+export type InternalFeedbackStatus = (typeof INTERNAL_FEEDBACK_STATUSES)[number];
+
+export const REVIEW_PLATFORMS = [
+  'GOOGLE',
+  'TRIPADVISOR',
+  'BOOKING_COM',
+  'FACEBOOK',
+] as const;
+export type ReviewPlatform = (typeof REVIEW_PLATFORMS)[number];

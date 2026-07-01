@@ -23,6 +23,12 @@ import reportRoutes from '../modules/reports/reports.routes';
 import taskRoutes from '../modules/tasks/tasks.routes';
 import notificationRoutes from '../modules/notifications/notifications.routes';
 import platformRoutes from '../modules/platform/platform.routes';
+import reviewGrowthRoutes from '../modules/reviewGrowth/reviewGrowth.routes';
+import hotelIntegrationRoutes from '../modules/hotelIntegrations/hotelIntegrations.routes';
+import birthdayAutomationRoutes from '../modules/birthdayAutomation/birthdayAutomation.routes';
+import festivalCampaignRoutes from '../modules/festivalCampaigns/festivalCampaigns.routes';
+import comebackCampaignRoutes from '../modules/comebackCampaigns/comebackCampaigns.routes';
+import loyaltyReferralRoutes from '../modules/loyaltyReferrals/loyaltyReferrals.routes';
 
 const router = Router();
 
@@ -50,5 +56,11 @@ router.use('/calendar', calendarRoutes);
 router.use('/reports', reportRoutes);
 router.use('/tasks', taskRoutes);
 router.use('/notifications', notificationRoutes);
+router.use('/review-growth', reviewGrowthRoutes);
+router.use('/hotel-integrations', hotelIntegrationRoutes);
+router.use('/birthday-automation', birthdayAutomationRoutes);
+router.use('/festival-campaigns', festivalCampaignRoutes);
+router.use('/comeback-campaigns', comebackCampaignRoutes);
+router.use('/loyalty-referrals', loyaltyReferralRoutes);
 
 export default router;

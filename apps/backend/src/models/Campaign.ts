@@ -161,10 +161,13 @@ campaignSchema.pre('save', async function generateCampaignNumber(next) {
     return;
   }
   const prefix = `CMP-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}`;
-  const count = await mongoose.models.Campaign.countDocuments({
-    hotelId: this.hotelId,
-    campaignNumber: { $regex: `^${prefix}` },
-  });
+  const count = await mongoose.models.Campaign.countDocuments(
+    {
+      hotelId: this.hotelId,
+      campaignNumber: { $regex: `^${prefix}` },
+    },
+    { includeDeleted: true }
+  );
   this.campaignNumber = `${prefix}-${String(count + 1).padStart(4, '0')}`;
   next();
 });

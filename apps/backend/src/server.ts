@@ -3,9 +3,11 @@ import { config } from './config';
 import { connectDatabase, disconnectDatabase } from './config/database';
 import { logger } from './utils/logger';
 import { startWorkers, stopWorkers } from './workers';
+import { registerReviewGrowthAutomationHandlers } from './modules/reviewGrowth/reviewGrowth.automation';
 
 const startServer = async (): Promise<void> => {
   await connectDatabase();
+  registerReviewGrowthAutomationHandlers();
   await startWorkers();
 
   const server = app.listen(config.port, () => {
