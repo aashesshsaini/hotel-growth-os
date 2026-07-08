@@ -8,9 +8,12 @@ export interface IReviewSettings extends Document {
   defaultPlatform: ReviewPlatform;
   googleReviewUrl?: string;
   defaultDelayMinutes: number;
+  reminderDelayMinutes: number;
+  recoveryDelayMinutes: number;
   requestExpiryDays: number;
   autoSendOnCheckout: boolean;
   autoSendOnBookingCompleted: boolean;
+  positiveRatingThreshold: number;
   negativeRatingThreshold: number;
   channels: {
     whatsapp: boolean;
@@ -48,10 +51,13 @@ const reviewSettingsSchema = new Schema<IReviewSettings>(
       trim: true,
       validate: { validator: googleReviewUrlValidator, message: 'Invalid Google Review URL' },
     },
-    defaultDelayMinutes: { type: Number, default: 60, min: 0, max: 43200 },
+    defaultDelayMinutes: { type: Number, default: 120, min: 0, max: 43200 },
+    reminderDelayMinutes: { type: Number, default: 1440, min: 0, max: 43200 },
+    recoveryDelayMinutes: { type: Number, default: 2880, min: 0, max: 43200 },
     requestExpiryDays: { type: Number, default: 14, min: 1, max: 365 },
     autoSendOnCheckout: { type: Boolean, default: true },
     autoSendOnBookingCompleted: { type: Boolean, default: true },
+    positiveRatingThreshold: { type: Number, default: 4, min: 1, max: 5 },
     negativeRatingThreshold: { type: Number, default: 3, min: 1, max: 5 },
     channels: {
       whatsapp: { type: Boolean, default: true },

@@ -1,6 +1,9 @@
-import mongoose, { Document, Schema } from 'mongoose';
-import { REVIEW_GROWTH_CAMPAIGN_TRIGGERS, ReviewGrowthCampaignTrigger } from '@hotel-growth-os/shared';
-import { auditFields, softDeletePlugin } from '../utils/schemaHelpers';
+import mongoose, { Document, Schema } from "mongoose";
+import {
+  REVIEW_GROWTH_CAMPAIGN_TRIGGERS,
+  ReviewGrowthCampaignTrigger,
+} from "@hotel-growth-os/shared";
+import { auditFields, softDeletePlugin } from "../utils/schemaHelpers";
 
 export interface IReviewGrowthTimelineEntry {
   action: string;
@@ -50,21 +53,31 @@ const timelineSchema = new Schema<IReviewGrowthTimelineEntry>(
     action: { type: String, required: true },
     message: String,
     createdAt: { type: Date, default: Date.now },
-    createdBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    createdBy: { type: Schema.Types.ObjectId, ref: "User" },
     metadata: { type: Schema.Types.Mixed },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const reviewCampaignSchema = new Schema<IReviewCampaign>(
   {
-    hotelId: { type: Schema.Types.ObjectId, ref: 'Hotel', required: true, index: true },
+    hotelId: {
+      type: Schema.Types.ObjectId,
+      ref: "Hotel",
+      required: true,
+      index: true,
+    },
     campaignNumber: { type: String, required: true, trim: true, index: true },
     name: { type: String, required: true, trim: true },
     description: { type: String, trim: true },
-    trigger: { type: String, enum: REVIEW_GROWTH_CAMPAIGN_TRIGGERS, required: true, index: true },
-    templateId: { type: Schema.Types.ObjectId, ref: 'ReviewTemplate' },
-    settingsId: { type: Schema.Types.ObjectId, ref: 'ReviewSettings' },
+    trigger: {
+      type: String,
+      enum: REVIEW_GROWTH_CAMPAIGN_TRIGGERS,
+      required: true,
+      index: true,
+    },
+    templateId: { type: Schema.Types.ObjectId, ref: "ReviewTemplate" },
+    settingsId: { type: Schema.Types.ObjectId, ref: "ReviewSettings" },
     isActive: { type: Boolean, default: true, index: true },
     delayMinutes: { type: Number, default: 60, min: 0, max: 43200 },
     audienceFilters: {
@@ -85,27 +98,29 @@ const reviewCampaignSchema = new Schema<IReviewCampaign>(
     timeline: { type: [timelineSchema], default: [] },
     ...auditFields,
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 reviewCampaignSchema.index({ hotelId: 1, campaignNumber: 1 }, { unique: true });
 reviewCampaignSchema.index({ hotelId: 1, trigger: 1, isActive: 1 });
 reviewCampaignSchema.index({ hotelId: 1, createdAt: -1 });
-reviewCampaignSchema.index({ name: 'text', description: 'text' });
+reviewCampaignSchema.index({ name: "text", description: "text" });
 reviewCampaignSchema.plugin(softDeletePlugin);
 
-reviewCampaignSchema.pre('validate', async function generateCampaignNumber(next) {
-  if (this.campaignNumber) return next();
-  const prefix = `RGC-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}`;
+reviewCampaignSchema.pre("validate", async function generateCampaignNumber() {
+  if (this.campaignNumber) return;
+  const prefix = `RGC-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}`;
   const count = await mongoose.models.ReviewCampaign.countDocuments(
     {
       hotelId: this.hotelId,
       campaignNumber: { $regex: `^${prefix}` },
     },
-    { includeDeleted: true }
+    { includeDeleted: true },
   );
-  this.campaignNumber = `${prefix}-${String(count + 1).padStart(4, '0')}`;
-  next();
+  this.campaignNumber = `${prefix}-${String(count + 1).padStart(4, "0")}`;
 });
 
-export const ReviewCampaign = mongoose.model<IReviewCampaign>('ReviewCampaign', reviewCampaignSchema);
+export const ReviewCampaign = mongoose.model<IReviewCampaign>(
+  "ReviewCampaign",
+  reviewCampaignSchema,
+);

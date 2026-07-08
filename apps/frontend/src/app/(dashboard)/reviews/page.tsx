@@ -29,6 +29,7 @@ import {
   getReviewCampaigns,
   getReviewGrowthAnalytics,
   getReviewGrowthDashboard,
+  getReviewRequest,
   getReviewRequests,
   getReviewSettings,
   getReviewTemplates,
@@ -66,7 +67,7 @@ const tabs: Array<{ id: Tab; label: string }> = [
 
 const emptyCampaign: Partial<ReviewCampaign> = { name: '', description: '', trigger: 'CHECKOUT', isActive: true, delayMinutes: 120 };
 const emptyTemplate: Partial<ReviewTemplate> = { name: '', platform: 'GOOGLE', channel: 'whatsapp', subject: '', body: 'Hi {{guest_name}}, thank you for staying with us. Please share your review: {{review_link}}', variables: ['guest_name', 'review_link'], isActive: true, isDefault: false };
-const emptySettings: ReviewSettings = { isEnabled: true, defaultPlatform: 'GOOGLE', googleReviewUrl: '', defaultDelayMinutes: 120, requestExpiryDays: 14, autoSendOnCheckout: true, autoSendOnBookingCompleted: true, negativeRatingThreshold: 3, channels: { whatsapp: true, sms: false, email: false }, notificationUserIds: [] };
+const emptySettings: ReviewSettings = { isEnabled: true, defaultPlatform: 'GOOGLE', googleReviewUrl: '', defaultDelayMinutes: 120, reminderDelayMinutes: 1440, recoveryDelayMinutes: 2880, requestExpiryDays: 14, autoSendOnCheckout: true, autoSendOnBookingCompleted: true, positiveRatingThreshold: 4, negativeRatingThreshold: 3, channels: { whatsapp: true, sms: false, email: false }, notificationUserIds: [] };
 
 const labelFromEntity = (value: unknown, fallback = '—') => {
   if (!value) return fallback;
@@ -103,6 +104,8 @@ export default function ReviewGrowthPage() {
   const [templateChannel, setTemplateChannel] = useState('');
   const [archiveCampaign, setArchiveCampaign] = useState<ReviewCampaign | null>(null);
   const [deleteTemplateTarget, setDeleteTemplateTarget] = useState<ReviewTemplate | null>(null);
+  const [requestDetail, setRequestDetail] = useState<ReviewRequest | null>(null);
+  const [requestDetailLoading, setRequestDetailLoading] = useState(false);
 
   const loadOverview = useCallback(async () => {
     setLoading(true);
@@ -173,13 +176,25 @@ export default function ReviewGrowthPage() {
     { key: 'sentAt', header: 'Sent Date', render: (row) => row.sentAt ? formatDate(row.sentAt) : 'Not sent' },
     { key: 'channel', header: 'Channel', render: (row) => <StatusBadge status={row.channel} /> },
     { key: 'status', header: 'Status', render: (row) => <StatusBadge status={row.status} /> },
+    { key: 'privateRating', header: 'Private Rating', render: (row) => row.privateRating ? <Stars value={row.privateRating} /> : '—' },
     { key: 'reviewedAt', header: 'Review Submitted', render: (row) => row.reviewedAt ? <StatusBadge status="reviewed" /> : '—' },
     { key: 'actions', header: '', render: (row) => <ActionMenu items={[
+      { label: 'View Details', icon: Eye, onClick: () => void openRequestDetail(row) },
       { label: 'Send', icon: Send, onClick: async () => { await sendReviewRequest(entityId(row)); showToast('Request sent'); requests.refresh(); loadOverview(); } },
       { label: 'Resend', icon: RefreshCw, onClick: async () => { await resendReviewRequest(entityId(row)); showToast('Request resent'); requests.refresh(); } },
       { label: 'Cancel', icon: Trash2, variant: 'danger', dividerBefore: true, onClick: async () => { await cancelReviewRequest(entityId(row), 'Cancelled from Review Growth UI'); showToast('Request cancelled'); requests.refresh(); } },
     ]} /> },
   ], [loadOverview, requests, showToast]);
+
+  const openRequestDetail = async (row: ReviewRequest) => {
+    setRequestDetailLoading(true);
+    try {
+      const detail = await getReviewRequest(entityId(row));
+      setRequestDetail(detail);
+    } finally {
+      setRequestDetailLoading(false);
+    }
+  };
 
   const feedbackColumns = useMemo<Column<InternalFeedback>[]>(() => [
     { key: 'guest', header: 'Guest', render: (row) => labelFromEntity(row.guestId, 'Guest') },
@@ -260,11 +275,11 @@ export default function ReviewGrowthPage() {
       actions={<button type="button" className="btn-secondary" onClick={() => void refreshAll()}><RefreshCw className="mr-2 h-4 w-4" />Refresh</button>}
       summary={
         <SummaryCardGrid isLoading={loading}>
-          <StatCard title="Total Review Requests" value={dashboard?.reviewRequestsSent ?? 0} helper="Sent across all campaigns" icon={<Send className="h-5 w-5" />} />
-          <StatCard title="Reviews Received" value={dashboard?.totalReviews ?? 0} helper={`${dashboard?.reviewsThisMonth ?? 0} this month`} icon={<Star className="h-5 w-5" />} accent="bg-amber-50 text-amber-700" />
-          <StatCard title="Today's Requests" value={dashboard?.todaysRequests ?? 0} helper="Created today" icon={<Bell className="h-5 w-5" />} accent="bg-sky-50 text-sky-700" />
-          <StatCard title="Pending Requests" value={dashboard?.pendingRequests ?? 0} helper="Awaiting guest action" icon={<Bell className="h-5 w-5" />} accent="bg-violet-50 text-violet-700" />
-          <StatCard title="Conversion Rate" value={`${dashboard?.reviewConversion ?? 0}%`} helper={`Avg rating ${dashboard?.averageRating ?? 0}`} icon={<BarChart3 className="h-5 w-5" />} accent="bg-emerald-50 text-emerald-700" />
+          <StatCard title="Private Ratings" value={dashboard?.privateRatingsReceived ?? 0} helper="Satisfaction funnel responses" icon={<Star className="h-5 w-5" />} accent="bg-amber-50 text-amber-700" />
+          <StatCard title="Positive Guests" value={dashboard?.positiveGuests ?? 0} helper={`Avg private rating ${dashboard?.averagePrivateRating ?? 0}`} icon={<CheckCircle2 className="h-5 w-5" />} accent="bg-emerald-50 text-emerald-700" />
+          <StatCard title="Negative Guests" value={dashboard?.negativeGuests ?? 0} helper={`${dashboard?.needsRecovery ?? 0} need recovery`} icon={<Bell className="h-5 w-5" />} accent="bg-rose-50 text-rose-700" />
+          <StatCard title="Google Redirected" value={dashboard?.googleRedirected ?? 0} helper={`${dashboard?.reviewsCompleted ?? 0} reviews completed`} icon={<Send className="h-5 w-5" />} />
+          <StatCard title="Conversion Rate" value={`${dashboard?.reviewConversion ?? 0}%`} helper={`${dashboard?.todaysRequests ?? 0} requests today`} icon={<BarChart3 className="h-5 w-5" />} accent="bg-sky-50 text-sky-700" />
         </SummaryCardGrid>
       }
       toolbar={
@@ -302,7 +317,7 @@ export default function ReviewGrowthPage() {
 
       {activeTab === 'requests' && (
         <SectionCard title="Review Requests" subtitle="Track guest requests, delivery status, reminders, and conversions.">
-          <ModuleToolbar onSearch={requests.setSearch} searchPlaceholder="Search requests..." filters={<FilterPanel title="Filters" activeCount={requestStatus ? 1 : 0} onReset={() => setRequestStatus('')} basicFilters={<SelectInput label="Status" value={requestStatus} onChange={(e) => setRequestStatus(e.target.value)} options={[{ value: '', label: 'All statuses' }, ...['PENDING', 'QUEUED', 'PROCESSING', 'SENT', 'DELIVERED', 'OPENED', 'CLICKED', 'REVIEWED', 'FAILED', 'EXPIRED'].map((status) => ({ value: status, label: status }))]} />}><div /></FilterPanel>} />
+          <ModuleToolbar onSearch={requests.setSearch} searchPlaceholder="Search requests..." filters={<FilterPanel title="Filters" activeCount={requestStatus ? 1 : 0} onReset={() => setRequestStatus('')} basicFilters={<SelectInput label="Status" value={requestStatus} onChange={(e) => setRequestStatus(e.target.value)} options={[{ value: '', label: 'All statuses' }, ...['PENDING', 'QUEUED', 'PROCESSING', 'SENT', 'DELIVERED', 'OPENED', 'CLICKED', 'RATED', 'NEEDS_RECOVERY', 'GOOGLE_REDIRECTED', 'REVIEWED', 'FAILED', 'EXPIRED'].map((status) => ({ value: status, label: status }))]} />}><div /></FilterPanel>} />
           <div className="mt-4"><DataTable compact hideToolbar columns={requestColumns} data={requests.data} isLoading={requests.isLoading} error={requests.error} rowKey={entityId} emptyTitle="No requests found" pagination={{ page: requests.pagination.page, totalPages: requests.pagination.totalPages, total: requests.pagination.total, onPageChange: requests.setPage }} /></div>
         </SectionCard>
       )}
@@ -325,8 +340,11 @@ export default function ReviewGrowthPage() {
         <SectionCard title="Review Settings" subtitle="Configure automation, reminders, Google review URL, channels, and signature.">
           <div className="grid gap-4 md:grid-cols-2">
             <FormInput label="Google Review URL" value={settings.googleReviewUrl ?? ''} onChange={(e) => setSettings((prev) => ({ ...prev, googleReviewUrl: e.target.value }))} />
-            <FormInput label="Reminder Delay (minutes)" type="number" value={settings.defaultDelayMinutes ?? 120} onChange={(e) => setSettings((prev) => ({ ...prev, defaultDelayMinutes: Number(e.target.value) }))} />
+            <FormInput label="Review Delay (minutes)" type="number" value={settings.defaultDelayMinutes ?? 120} onChange={(e) => setSettings((prev) => ({ ...prev, defaultDelayMinutes: Number(e.target.value) }))} />
+            <FormInput label="Reminder Delay (minutes)" type="number" value={settings.reminderDelayMinutes ?? 1440} onChange={(e) => setSettings((prev) => ({ ...prev, reminderDelayMinutes: Number(e.target.value) }))} />
+            <FormInput label="Recovery Delay (minutes)" type="number" value={settings.recoveryDelayMinutes ?? 2880} onChange={(e) => setSettings((prev) => ({ ...prev, recoveryDelayMinutes: Number(e.target.value) }))} />
             <FormInput label="Request Expiry Days" type="number" value={settings.requestExpiryDays ?? 14} onChange={(e) => setSettings((prev) => ({ ...prev, requestExpiryDays: Number(e.target.value) }))} />
+            <FormInput label="Positive Rating Threshold" type="number" value={settings.positiveRatingThreshold ?? 4} onChange={(e) => setSettings((prev) => ({ ...prev, positiveRatingThreshold: Number(e.target.value) }))} />
             <FormInput label="Negative Rating Threshold" type="number" value={settings.negativeRatingThreshold ?? 3} onChange={(e) => setSettings((prev) => ({ ...prev, negativeRatingThreshold: Number(e.target.value) }))} />
             <label className="flex items-center gap-3 rounded-2xl bg-slate-50 p-4 text-sm font-semibold"><input type="checkbox" checked={settings.autoSendOnCheckout ?? true} onChange={(e) => setSettings((prev) => ({ ...prev, autoSendOnCheckout: e.target.checked }))} />Automation Enabled on Checkout</label>
             <label className="flex items-center gap-3 rounded-2xl bg-slate-50 p-4 text-sm font-semibold"><input type="checkbox" checked={settings.channels?.whatsapp ?? true} onChange={(e) => setSettings((prev) => ({ ...prev, channels: { ...(prev.channels ?? {}), whatsapp: e.target.checked } }))} />WhatsApp Channel Enabled</label>
@@ -343,7 +361,12 @@ export default function ReviewGrowthPage() {
           </div>
           <div className="grid gap-5 xl:grid-cols-3">
             <BarChartWidget title="Review Conversion" data={distribution(analytics?.conversion ?? [])} />
-            <BarChartWidget title="Failure Rate" data={distribution(analytics?.requestPerformance ?? [])} />
+            <BarChartWidget title="Satisfaction Funnel" data={{
+              Positive: analytics?.satisfactionMetrics?.positivePercent ?? 0,
+              Negative: analytics?.satisfactionMetrics?.negativePercent ?? 0,
+              'Google Redirect': analytics?.satisfactionMetrics?.googleRedirectRate ?? 0,
+              Completed: analytics?.satisfactionMetrics?.reviewCompletionRate ?? 0,
+            }} />
             <BarChartWidget title="Review Source Distribution" data={distribution(analytics?.sourceDistribution ?? [])} />
           </div>
           <SectionCard title="Top Performing Campaigns">
@@ -383,7 +406,7 @@ export default function ReviewGrowthPage() {
       <Modal isOpen={!!previewTemplate} onClose={() => setPreviewTemplate(null)} title="Template Preview" size="md">
         <div className="rounded-2xl bg-slate-50 p-4">
           <p className="text-sm font-semibold text-slate-950">{previewTemplate?.subject || previewTemplate?.name}</p>
-          <p className="mt-3 whitespace-pre-wrap text-sm text-slate-700">{previewTemplate?.body?.replace(/\{\{guest_name\}\}/g, 'Aarav Sharma').replace(/\{\{review_link\}\}/g, 'https://g.page/example/review')}</p>
+          <p className="mt-3 whitespace-pre-wrap text-sm text-slate-700">{previewTemplate?.body?.replace(/\{\{guest_name\}\}/g, 'Aarav Sharma').replace(/\{\{review_link\}\}/g, `${typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/review/sample-token`)}</p>
         </div>
         <button type="button" className="btn-secondary mt-4" onClick={() => showToast('Template preview validated')}>Test Template</button>
       </Modal>
@@ -392,6 +415,34 @@ export default function ReviewGrowthPage() {
         {feedbackAction?.action === 'assign' && <FormInput label="Staff User ID" value={feedbackForm.assignedTo} onChange={(e) => setFeedbackForm((prev) => ({ ...prev, assignedTo: e.target.value }))} />}
         {feedbackAction?.action === 'status' && <SelectInput label="Status" value={feedbackForm.status} onChange={(e) => setFeedbackForm((prev) => ({ ...prev, status: e.target.value as FeedbackStatus }))} options={['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'].map((status) => ({ value: status, label: status }))} />}
         {feedbackAction?.action === 'resolve' && <TextArea label="Resolution Notes" value={feedbackForm.resolutionNotes} onChange={(e) => setFeedbackForm((prev) => ({ ...prev, resolutionNotes: e.target.value }))} />}
+      </Modal>
+
+      <Modal isOpen={!!requestDetail || requestDetailLoading} onClose={() => setRequestDetail(null)} title="Review Request Details" size="lg">
+        {requestDetailLoading ? <LoadingState /> : requestDetail ? (
+          <div className="space-y-5">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="rounded-2xl bg-slate-50 p-4"><p className="text-xs font-semibold uppercase text-slate-500">Status</p><div className="mt-2"><StatusBadge status={requestDetail.status} /></div></div>
+              <div className="rounded-2xl bg-slate-50 p-4"><p className="text-xs font-semibold uppercase text-slate-500">Private Rating</p><div className="mt-2">{requestDetail.privateRating ? <Stars value={requestDetail.privateRating} /> : 'Not submitted'}</div></div>
+              <div className="rounded-2xl bg-slate-50 p-4"><p className="text-xs font-semibold uppercase text-slate-500">Outcome</p><p className="mt-2 font-semibold capitalize">{requestDetail.satisfactionOutcome || 'Pending'}</p></div>
+              <div className="rounded-2xl bg-slate-50 p-4"><p className="text-xs font-semibold uppercase text-slate-500">Recovery Status</p><p className="mt-2 font-semibold">{requestDetail.recoveryStatus || '—'}</p></div>
+              <div className="rounded-2xl bg-slate-50 p-4"><p className="text-xs font-semibold uppercase text-slate-500">Google Redirect</p><p className="mt-2 font-semibold">{requestDetail.googleRedirectedAt ? formatDate(requestDetail.googleRedirectedAt) : 'Not yet'}</p></div>
+              <div className="rounded-2xl bg-slate-50 p-4"><p className="text-xs font-semibold uppercase text-slate-500">Review Completed</p><p className="mt-2 font-semibold">{requestDetail.reviewedAt ? formatDate(requestDetail.reviewedAt) : 'Not yet'}</p></div>
+            </div>
+            <SectionCard title="Activity Timeline" subtitle="Lifecycle events for this request.">
+              {requestDetail.timeline?.length ? (
+                <div className="space-y-3">
+                  {requestDetail.timeline.map((item, index) => (
+                    <div key={`${item.action}-${index}`} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                      <p className="font-semibold text-slate-950">{item.action.replace(/[_\.]/g, ' ')}</p>
+                      {item.message && <p className="mt-1 text-sm text-slate-600">{item.message}</p>}
+                      <p className="mt-2 text-xs text-slate-500">{item.createdAt ? formatDate(item.createdAt) : '—'}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : <EmptyState title="No activity yet" description="Timeline events will appear as the request progresses." />}
+            </SectionCard>
+          </div>
+        ) : null}
       </Modal>
 
       <ConfirmDialog isOpen={!!archiveCampaign} onClose={() => setArchiveCampaign(null)} onConfirm={async () => { if (archiveCampaign) await deleteReviewCampaign(entityId(archiveCampaign)); setArchiveCampaign(null); showToast('Campaign archived'); campaigns.refresh(); }} title="Archive Campaign" message="This campaign will be archived and removed from active campaign lists." confirmLabel="Archive" />

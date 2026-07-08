@@ -1,7 +1,8 @@
 import { apiDelete, apiGet, apiPatch, apiPost, apiPut } from '@/lib/api';
 import type { ListParams, PaginatedResponse } from '@/types';
 
-export type ReviewRequestStatus = 'PENDING' | 'QUEUED' | 'PROCESSING' | 'SENT' | 'DELIVERED' | 'OPENED' | 'CLICKED' | 'REVIEWED' | 'FAILED' | 'EXPIRED';
+export type ReviewRequestStatus = 'PENDING' | 'QUEUED' | 'PROCESSING' | 'SENT' | 'DELIVERED' | 'OPENED' | 'CLICKED' | 'RATED' | 'NEEDS_RECOVERY' | 'GOOGLE_REDIRECTED' | 'REVIEWED' | 'FAILED' | 'EXPIRED';
+export type ReviewRecoveryStatus = 'NEEDS_RECOVERY' | 'ASSIGNED' | 'CONTACTED' | 'RESOLVED' | 'ELIGIBLE_FOR_REVIEW' | 'RECOVERED';
 export type FeedbackStatus = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
 export type ReviewPlatform = 'GOOGLE' | 'TRIPADVISOR' | 'BOOKING_COM' | 'FACEBOOK';
 
@@ -12,6 +13,13 @@ export interface ReviewGrowthDashboard {
   reviewRequestsSent: number;
   pendingRequests: number;
   todaysRequests?: number;
+  privateRatingsReceived?: number;
+  positiveGuests?: number;
+  negativeGuests?: number;
+  googleRedirected?: number;
+  reviewsCompleted?: number;
+  needsRecovery?: number;
+  averagePrivateRating?: number;
   reviewConversion: number;
   negativeFeedbackCount: number;
   estimatedReviewGrowth: number;
@@ -43,6 +51,13 @@ export interface ReviewRequest {
   campaignId?: unknown;
   status: ReviewRequestStatus;
   channel: 'whatsapp' | 'sms' | 'email';
+  privateRating?: number;
+  privateRatingSubmittedAt?: string;
+  satisfactionOutcome?: 'positive' | 'negative';
+  recoveryStatus?: ReviewRecoveryStatus;
+  googleRedirectedAt?: string;
+  googleReviewSubmittedAt?: string;
+  internalFeedbackId?: unknown;
   recipientPhone?: string;
   recipientEmail?: string;
   sentAt?: string;
@@ -107,9 +122,12 @@ export interface ReviewSettings {
   defaultPlatform?: ReviewPlatform;
   googleReviewUrl?: string;
   defaultDelayMinutes?: number;
+  reminderDelayMinutes?: number;
+  recoveryDelayMinutes?: number;
   requestExpiryDays?: number;
   autoSendOnCheckout?: boolean;
   autoSendOnBookingCompleted?: boolean;
+  positiveRatingThreshold?: number;
   negativeRatingThreshold?: number;
   channels?: { whatsapp?: boolean; sms?: boolean; email?: boolean };
   notificationUserIds?: string[];
@@ -131,6 +149,14 @@ export interface ReviewAnalytics {
   campaignPerformance: Array<{ campaignId?: string; campaignName?: string; requests: number; reviewed: number; failed: number }>;
   sourceDistribution: Array<{ _id: string; count: number }>;
   requestPerformance: Array<{ _id: string; count: number }>;
+  satisfactionMetrics?: {
+    positivePercent: number;
+    negativePercent: number;
+    averagePrivateRating: number;
+    googleRedirectRate: number;
+    internalFeedbackRate: number;
+    reviewCompletionRate: number;
+  };
 }
 
 export const entityId = (entity: { _id?: string; id?: string }) => entity.id || entity._id || '';
@@ -146,6 +172,8 @@ export const deleteReviewCampaign = (id: string) => apiDelete<void>(`/review-gro
 export const enableReviewCampaign = (id: string) => apiPost<ReviewCampaign>(`/review-growth/campaigns/${id}/enable`);
 export const disableReviewCampaign = (id: string) => apiPost<ReviewCampaign>(`/review-growth/campaigns/${id}/disable`);
 
+export const getReviewRequest = (id: string) => apiGet<ReviewRequest>(`/review-growth/requests/${id}`);
+export const getReviewRequestHistory = (id: string) => apiGet<{ timeline?: TimelineItem[] }>(`/review-growth/requests/${id}/history`);
 export const getReviewRequests = (params?: ListParams & Record<string, unknown>) => apiGet<PaginatedResponse<ReviewRequest>>('/review-growth/requests', params);
 export const createReviewRequest = (payload: Record<string, unknown>) => apiPost<ReviewRequest>('/review-growth/requests', payload);
 export const sendReviewRequest = (id: string) => apiPost<ReviewRequest>(`/review-growth/requests/${id}/send`, {});

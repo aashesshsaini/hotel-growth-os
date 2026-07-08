@@ -1,5 +1,14 @@
 import mongoose, { Document, Schema } from 'mongoose';
-import { REVIEW_REQUEST_STATUSES, ReviewPlatform, ReviewRequestStatus, REVIEW_PLATFORMS } from '@hotel-growth-os/shared';
+import {
+  REVIEW_RECOVERY_STATUSES,
+  REVIEW_REQUEST_STATUSES,
+  ReviewPlatform,
+  ReviewRecoveryStatus,
+  ReviewRequestStatus,
+  REVIEW_PLATFORMS,
+  SatisfactionOutcome,
+  SATISFACTION_OUTCOMES,
+} from '@hotel-growth-os/shared';
 import { auditFields, softDeletePlugin } from '../utils/schemaHelpers';
 import { IReviewGrowthTimelineEntry } from './ReviewCampaign';
 
@@ -9,9 +18,16 @@ export interface IReviewRequest extends Document {
   bookingId: mongoose.Types.ObjectId;
   guestId: mongoose.Types.ObjectId;
   reviewId?: mongoose.Types.ObjectId;
+  internalFeedbackId?: mongoose.Types.ObjectId;
   templateId?: mongoose.Types.ObjectId;
   platform: ReviewPlatform;
   status: ReviewRequestStatus;
+  privateRating?: number;
+  privateRatingSubmittedAt?: Date;
+  satisfactionOutcome?: SatisfactionOutcome;
+  recoveryStatus?: ReviewRecoveryStatus;
+  googleRedirectedAt?: Date;
+  googleReviewSubmittedAt?: Date;
   channel: 'whatsapp' | 'sms' | 'email';
   recipientPhone?: string;
   recipientEmail?: string;
@@ -59,9 +75,16 @@ const reviewRequestSchema = new Schema<IReviewRequest>(
     bookingId: { type: Schema.Types.ObjectId, ref: 'Booking', required: true, index: true },
     guestId: { type: Schema.Types.ObjectId, ref: 'Guest', required: true, index: true },
     reviewId: { type: Schema.Types.ObjectId, ref: 'Review' },
+    internalFeedbackId: { type: Schema.Types.ObjectId, ref: 'InternalFeedback', index: true },
     templateId: { type: Schema.Types.ObjectId, ref: 'ReviewTemplate' },
     platform: { type: String, enum: REVIEW_PLATFORMS, default: 'GOOGLE', index: true },
     status: { type: String, enum: REVIEW_REQUEST_STATUSES, default: 'PENDING', index: true },
+    privateRating: { type: Number, min: 1, max: 5, index: true },
+    privateRatingSubmittedAt: Date,
+    satisfactionOutcome: { type: String, enum: SATISFACTION_OUTCOMES, index: true },
+    recoveryStatus: { type: String, enum: REVIEW_RECOVERY_STATUSES, index: true },
+    googleRedirectedAt: Date,
+    googleReviewSubmittedAt: Date,
     channel: { type: String, enum: ['whatsapp', 'sms', 'email'], default: 'whatsapp', index: true },
     recipientPhone: { type: String, trim: true, validate: { validator: phoneValidator, message: 'Invalid phone number' } },
     recipientEmail: { type: String, lowercase: true, trim: true, validate: { validator: emailValidator, message: 'Invalid email address' } },

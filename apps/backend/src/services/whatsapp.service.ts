@@ -1,5 +1,5 @@
-import { config } from '../config';
-import { logger } from '../utils/logger';
+import { config } from "../config";
+import { logger } from "../utils/logger";
 
 export interface SendWhatsAppPayload {
   phone: string;
@@ -15,89 +15,201 @@ export interface SendWhatsAppResult {
   whatsappMessageId?: string;
   simulated: boolean;
   error?: string;
+  status?: string;
+  response?: unknown;
 }
 
-const normalizePhone = (phone: string): string => phone.replace(/\D/g, '');
+type WhatsAppDeliveryContext =
+  | "review_request"
+  | "reminder"
+  | "internal_feedback_alert"
+  | "message";
 
-export const whatsappProvider = {
+const normalizePhone = (phone: string): string => phone.replace(/\D/g, "");
+
+const getWhatsAppSettings = () => ({
+  accessToken:
+    process.env.WHATSAPP_ACCESS_TOKEN || config.whatsapp.accessToken || "",
+  phoneNumberId:
+    process.env.WHATSAPP_PHONE_NUMBER_ID || config.whatsapp.phoneNumberId || "",
+  apiVersion:
+    process.env.WHATSAPP_API_VERSION || config.whatsapp.apiVersion || "v18.0",
+  apiUrl:
+    process.env.WHATSAPP_API_URL ||
+    config.whatsapp.apiUrl ||
+    "https://graph.facebook.com",
+  verifyToken:
+    process.env.WHATSAPP_VERIFY_TOKEN || config.whatsapp.verifyToken || "",
+});
+
+const resolveApiEndpoint = (
+  settings: ReturnType<typeof getWhatsAppSettings>,
+) => {
+  const baseUrl = settings.apiUrl.replace(/\/+$/, "");
+  return /\/v\d+(?:\.\d+)?$/i.test(baseUrl)
+    ? `${baseUrl}/${settings.phoneNumberId}/messages`
+    : `${baseUrl}/${settings.apiVersion}/${settings.phoneNumberId}/messages`;
+};
+
+export class WhatsAppService {
   isConfigured(): boolean {
-    return Boolean(config.whatsapp.accessToken && config.whatsapp.phoneNumberId);
-  },
+    const { accessToken, phoneNumberId } = getWhatsAppSettings();
+    return Boolean(accessToken && phoneNumberId);
+  }
 
   async sendMessage(payload: SendWhatsAppPayload): Promise<SendWhatsAppResult> {
+    return this.sendTextMessage(payload, "message");
+  }
+
+  async sendReviewRequest(
+    payload: SendWhatsAppPayload,
+  ): Promise<SendWhatsAppResult> {
+    return this.sendTextMessage(payload, "review_request");
+  }
+
+  async sendReminder(
+    payload: SendWhatsAppPayload,
+  ): Promise<SendWhatsAppResult> {
+    return this.sendTextMessage(payload, "reminder");
+  }
+
+  async sendInternalFeedbackAlert(
+    payload: SendWhatsAppPayload,
+  ): Promise<SendWhatsAppResult> {
+    return this.sendTextMessage(payload, "internal_feedback_alert");
+  }
+
+  private async sendTextMessage(
+    payload: SendWhatsAppPayload,
+    context: WhatsAppDeliveryContext,
+  ): Promise<SendWhatsAppResult> {
     const phone = normalizePhone(payload.phone);
+    console.log(phone, "phone.......");
     if (!phone) {
-      return { success: false, simulated: true, error: 'Invalid phone number' };
+      return {
+        success: false,
+        simulated: true,
+        error: "Invalid phone number",
+        status: "failed",
+      };
     }
 
+    const settings = getWhatsAppSettings();
     if (!this.isConfigured()) {
+      const simulatedId = `sim_${Date.now()}_${phone.slice(-4)}`;
+      logger.info("WhatsApp delivery simulated", {
+        messageId: simulatedId,
+        status: "simulated",
+        response: { context },
+      });
       return {
         success: true,
         simulated: true,
-        whatsappMessageId: `sim_${Date.now()}_${phone.slice(-4)}`,
+        whatsappMessageId: simulatedId,
+        status: "simulated",
+        response: { context },
       };
     }
 
     try {
-      const url = `${config.whatsapp.apiUrl}/${config.whatsapp.phoneNumberId}/messages`;
+      const url = resolveApiEndpoint(settings);
       const body =
-        payload.messageType === 'template' && payload.templateName
+        payload.messageType === "template" && payload.templateName
           ? {
-              messaging_product: 'whatsapp',
+              messaging_product: "whatsapp",
               to: phone,
-              type: 'template',
+              type: "template",
               template: {
                 name: payload.templateName,
-                language: { code: payload.templateLanguage || 'en' },
+                language: { code: payload.templateLanguage || "en" },
               },
             }
           : {
-              messaging_product: 'whatsapp',
+              messaging_product: "whatsapp",
               to: phone,
-              type: 'text',
+              type: "text",
               text: { body: payload.content },
             };
 
       const response = await fetch(url, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          Authorization: `Bearer ${config.whatsapp.accessToken}`,
-          'Content-Type': 'application/json',
+          Authorization: `Bearer ${settings.accessToken}`,
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(body),
       });
 
-      const data = (await response.json()) as { messages?: Array<{ id: string }>; error?: { message?: string } };
+      const data = (await response.json().catch(() => null)) as {
+        messages?: Array<{ id: string }>;
+        error?: { message?: string };
+      } | null;
+      const messageId = data?.messages?.[0]?.id;
+      const errorMessage =
+        data?.error?.message || "WhatsApp API request failed";
+
       if (!response.ok) {
+        logger.error("WhatsApp delivery failed", {
+          messageId,
+          status: "failed",
+          error: errorMessage,
+          response: data,
+        });
         return {
           success: false,
           simulated: false,
-          error: data.error?.message || 'WhatsApp API request failed',
+          error: errorMessage,
+          status: "failed",
+          response: data,
         };
       }
+
+      logger.info("WhatsApp delivery succeeded", {
+        messageId,
+        status: "sent",
+        error: null,
+        response: data,
+      });
 
       return {
         success: true,
         simulated: false,
-        whatsappMessageId: data.messages?.[0]?.id,
+        whatsappMessageId: messageId,
+        status: "sent",
+        response: data,
       };
     } catch (error) {
-      logger.error('WhatsApp send failed', error);
+      const message =
+        error instanceof Error ? error.message : "WhatsApp send failed";
+      logger.error("WhatsApp delivery failed", {
+        messageId: undefined,
+        status: "failed",
+        error: message,
+        response: null,
+      });
       return {
         success: false,
         simulated: false,
-        error: error instanceof Error ? error.message : 'WhatsApp send failed',
+        error: message,
+        status: "failed",
+        response: null,
       };
     }
-  },
+  }
 
-  verifyWebhook(mode: string | undefined, token: string | undefined, challenge: string | undefined): string | null {
-    if (mode === 'subscribe' && token === config.whatsapp.verifyToken) {
-      return challenge || '';
+  verifyWebhook(
+    mode: string | undefined,
+    token: string | undefined,
+    challenge: string | undefined,
+  ): string | null {
+    const { verifyToken } = getWhatsAppSettings();
+    if (mode === "subscribe" && token === verifyToken) {
+      return challenge || "";
     }
     return null;
-  },
-};
+  }
+}
 
 // Backward-compatible export
+export const whatsappProvider = new WhatsAppService();
 export const whatsappService = whatsappProvider;

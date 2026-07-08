@@ -256,11 +256,27 @@ export const REVIEW_REQUEST_STATUSES = [
   'DELIVERED',
   'OPENED',
   'CLICKED',
+  'RATED',
+  'NEEDS_RECOVERY',
+  'GOOGLE_REDIRECTED',
   'REVIEWED',
   'FAILED',
   'EXPIRED',
 ] as const;
 export type ReviewRequestStatus = (typeof REVIEW_REQUEST_STATUSES)[number];
+
+export const REVIEW_RECOVERY_STATUSES = [
+  'NEEDS_RECOVERY',
+  'ASSIGNED',
+  'CONTACTED',
+  'RESOLVED',
+  'ELIGIBLE_FOR_REVIEW',
+  'RECOVERED',
+] as const;
+export type ReviewRecoveryStatus = (typeof REVIEW_RECOVERY_STATUSES)[number];
+
+export const SATISFACTION_OUTCOMES = ['positive', 'negative'] as const;
+export type SatisfactionOutcome = (typeof SATISFACTION_OUTCOMES)[number];
 
 export const INTERNAL_FEEDBACK_STATUSES = [
   'OPEN',
